@@ -13,7 +13,10 @@
 #include "stdio.h"
 #include <string>
 
-std::string request(const char* ip, std::string domain, char* payload, size_t payload_length) {
+#include <sstream>
+#include <iomanip>
+
+void request(const char* ip, std::string domain, uint8_t* payload, size_t payload_length) {
     int sck = 0;
     uint8_t data[1024];
 
@@ -38,23 +41,25 @@ std::string request(const char* ip, std::string domain, char* payload, size_t pa
     write(sck, payload, payload_length);
 
     std::cout << "INFO: Waiting for data..." << std::endl;
-    std::string resp = "";
+//    std::string resp = "";
     while (true) {
         bzero(data, sizeof(data));
         int n = read(sck, data, sizeof(data));
-        std::cout << "read " << n << " bytes" << std::endl;
         if (n == 0) { 
             std::cout << "INFO: Closing socket" << std::endl;
             close(sck);
-            return resp;
+            return;
         }
         if (n < 0) {
             std::cout << "ERROR " << n << ": Standard input error" << std::endl;
             abort();
         }
 
+        std::cout << std::hex << std::setfill('0');
         for (int i = 0; i < n; i++) {
-            resp += std::to_string(data[i]) + " ";
+            std::cout << std::setw(2) << static_cast<unsigned>(data[i]) << " ";
+  //          resp += std::to_string(data[i]) + " ";
         }
+        std::cout << std::flush;
     }
 }
