@@ -3,6 +3,7 @@
 #include "string.h"
 
 template<> uint8_t msg_type<ClientHello>() { return 1; }
+template<> uint8_t msg_type<ServerHello>() { return 2; }
 template<typename T> uint8_t msg_type() { return 255; }
 
 TLSPlaintext<Handshake<ClientHello>> client_hello() {

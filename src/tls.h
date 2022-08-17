@@ -44,15 +44,24 @@ struct ClientHello {
         0x00, 0x35
     }; // todo https://www.rfc-editor.org/rfc/rfc5246#appendix-A.5
     uint8_t compression_methods_length = 1;
-    uint8_t compression_methods = 0; // no compression
+    uint8_t compression_methods[1] = { 0x00 }; // no compression
     uint16_t extensions_length = 0;
-    // uint16_t extension_type = 65535; // = default of ExtensionType: struct {};   
+};
+
+
+struct ServerHello {
+    uint8_t server_version[2];
+    Random random;
+    uint16_t session_id_length;
+    uint8_t session_id[32]; // FIXME the length of this should be dependant to session_id_length
+    uint8_t cipher_suite[2]; // negotiated cypher to use
+    uint8_t compression_method;
+    // uint16_t extensions_length; // consider leaving this out bc maybe it isn't being sent
 };
 
 template<typename T> uint8_t msg_type (); 
-
 template<> uint8_t msg_type <ClientHello> ();
-// template<> uint8_t msg_type <ServerHello> () { return 2; }
+template<> uint8_t msg_type <ServerHello> ();
 
 template<typename T>
 struct Handshake {
@@ -67,11 +76,10 @@ template<typename T>
 struct TLSPlaintext {
     uint8_t type = 22; // handshake
     uint8_t protocol_version[2] = {3,3}; // tls1.2 record
-    uint8_t length1 = 0;
-    uint8_t length2 = sizeof(T);
+    uint8_t length1 = sizeof(T) & 0xff00;
+    uint8_t length2 = sizeof(T) & 0x00ff;
     uint8_t fragment[sizeof(T)]; 
 };
-
 #pragma pack(pop)
 
 TLSPlaintext<Handshake<ClientHello>> client_hello();
