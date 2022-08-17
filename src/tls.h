@@ -49,22 +49,29 @@ struct ClientHello {
     // uint16_t extension_type = 65535; // = default of ExtensionType: struct {};   
 };
 
+template<typename T> uint8_t msg_type (); 
+
+template<> uint8_t msg_type <ClientHello> ();
+// template<> uint8_t msg_type <ServerHello> () { return 2; }
+
+template<typename T>
 struct Handshake {
-    uint8_t msg_type = 1; // handshake type (client_hello) 
-    uint8_t length1 = 0;             /* bytes in message */
-    uint8_t length2 = 0;
-    uint8_t length3 = 0; // <-- lsb
-    ClientHello body;
+    uint8_t msg_type = ::msg_type<T>(); // handshake type (client_hello) 
+    uint8_t length1 = sizeof(T) & 0xff0000;             /* bytes in message */
+    uint8_t length2 = sizeof(T) & 0x00ff00;
+    uint8_t length3 = sizeof(T) & 0x0000ff; // <-- lsb
+    T body;
 };
 
+template<typename T>
 struct TLSPlaintext {
     uint8_t type = 22; // handshake
     uint8_t protocol_version[2] = {3,3}; // tls1.2 record
     uint8_t length1 = 0;
-    uint8_t length2 = sizeof(Handshake);
-    uint8_t fragment[sizeof(Handshake)]; 
+    uint8_t length2 = sizeof(T);
+    uint8_t fragment[sizeof(T)]; 
 };
 
 #pragma pack(pop)
 
-TLSPlaintext client_hello();
+TLSPlaintext<Handshake<ClientHello>> client_hello();
