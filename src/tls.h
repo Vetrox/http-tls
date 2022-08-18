@@ -61,9 +61,12 @@ struct ServerHello {
     // uint16_t extensions_length; // consider leaving this out bc maybe it isn't being sent
 };
 
-template<typename T> uint8_t msg_type (); 
-template<> uint8_t msg_type <ClientHello> ();
-template<> uint8_t msg_type <ServerHello> ();
+
+#define MSGT_CLI_HELLO 1
+#define MSGT_SRV_HELLO 2
+template<typename T> constexpr uint8_t msg_type (); 
+template<> constexpr uint8_t msg_type <ClientHello> ();
+template<> constexpr uint8_t msg_type <ServerHello> ();
 
 template<typename T>
 struct Handshake {
