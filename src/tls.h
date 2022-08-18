@@ -55,7 +55,7 @@ struct ServerHello {
     uint8_t server_version[2];
     Random random;
     uint8_t session_id_length;
-    uint8_t session_id[32]; // FIXME the length of this should be dependant to session_id_length
+    uint8_t session_id[32]; // NOTE: we always reserve enough space for the SID
     uint8_t cipher_suite[2]; // negotiated cypher to use
     uint8_t compression_method;
     // uint16_t extensions_length; // consider leaving this out bc maybe it isn't being sent
