@@ -90,17 +90,37 @@ void try_decode(std::deque<uint8_t> &data) {
         data.pop_front();
     }
 
-    if (length != sizeof(Handshake<ServerHello>)) {
+    auto sid_l = record_payload[
+        1 + 3 + 2 + sizeof(Random)
+    ];
+
+    if (length != sizeof(Handshake<ServerHello>) - 32 + sid_l) {
         std::cout << "ASSERTION FAILED: Length was not Handshake<ServerHello>" << std::endl;
-        
         abort();
     }
 
+    ServerHello decoded;
+    bzero(&decoded, sizeof(decoded));
+    memcpy(&decoded, &record_payload[
+        1 + 3
+    ], 2+1);
+    memcpy(&decoded.session_id, &record_payload[
+        1 + 3 + 2 + sizeof(Random) + 1
+    ], sid_l);
+    memcpy(&decoded.cipher_suite, &record_payload[
+        1 + 3 + 2 + sizeof(Random) + 1 + sid_l
+    ], 3);
+
     std::cout << std::hex << std::setfill('0');
-    Handshake<ServerHello> decoded = *(Handshake<ServerHello>*) &record_payload;
     std::cout << std::setw(2) 
-        << "dec: " << +decoded.msg_type <<  "\n"
-        << +decoded.body.cipher_suite[0] << " " 
-        << +decoded.body.cipher_suite[1] << std::endl;
+        << "sv: " << +decoded.server_version[0] << " "
+        << +decoded.server_version[1] << "\n"
+        << "c: " << +decoded.compression_method << "\n"
+        << "cs: " << +decoded.cipher_suite[0] << " " 
+        << +decoded.cipher_suite[1] << "\n";
+    for (int i = 0; i < sid_l; i++) {
+        std::cout << +decoded.session_id[i] << " ";
+    }
+    std::cout << std::endl;
 }
 
