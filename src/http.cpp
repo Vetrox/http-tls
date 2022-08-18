@@ -76,6 +76,10 @@ void try_decode(std::deque<uint8_t> &data) {
     if (data.size() < 5) {
         return;
     }
+    if (data[0] != 22) {
+        std::cout << "unsupported tls record" << std::endl;
+        abort();
+    }
     std::cout << "try_decode" << std::endl;   
     uint16_t length = ntohs(*(uint16_t*) &data[3]);
     std::cout << "PCKLEN: " << length << std::endl;
@@ -123,3 +127,4 @@ void try_decode(std::deque<uint8_t> &data) {
     }
     std::cout << std::endl;
 }
+
