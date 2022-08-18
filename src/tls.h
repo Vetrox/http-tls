@@ -58,7 +58,7 @@ struct ServerHello {
     uint8_t session_id[32]; // NOTE: we always reserve enough space for the SID
     uint8_t cipher_suite[2]; // negotiated cypher to use
     uint8_t compression_method;
-    // uint16_t extensions_length; // consider leaving this out bc maybe it isn't being sent
+    // uint16_t extensions_length; // FIXME: when we provide extensions to the server, they might send some of them back here
 };
 
 
