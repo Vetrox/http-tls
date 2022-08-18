@@ -80,12 +80,13 @@ void try_decode(std::deque<uint8_t> &data) {
         std::cout << "unsupported tls record" << std::endl;
         abort();
     }
-    std::cout << "try_decode" << std::endl;   
+    
+
     uint16_t length = ntohs(*(uint16_t*) &data[3]);
-    std::cout << "PCKLEN: " << length << std::endl;
     if (data.size() < length + 5) {
         return; // wait for tcp to finish
     }
+    std::cout << "try_decode: record_payload_length: " << length << std::endl;
 
     uint8_t record_payload [length]; // maybe stackoverflow
     memcpy(record_payload, &data[5], length);
@@ -94,37 +95,58 @@ void try_decode(std::deque<uint8_t> &data) {
         data.pop_front();
     }
 
-    auto sid_l = record_payload[
-        1 + 3 + 2 + sizeof(Random)
-    ];
-
-    if (length != sizeof(Handshake<ServerHello>) - 32 + sid_l) {
-        std::cout << "ASSERTION FAILED: Length was not Handshake<ServerHello>" << std::endl;
+    if (length < 4) {
+        std::cout << "Handshake type is not complete" << std::endl;
         abort();
     }
 
-    ServerHello decoded;
-    bzero(&decoded, sizeof(decoded));
-    memcpy(&decoded, &record_payload[
-        1 + 3
-    ], 2+1);
-    memcpy(&decoded.session_id, &record_payload[
-        1 + 3 + 2 + sizeof(Random) + 1
-    ], sid_l);
-    memcpy(&decoded.cipher_suite, &record_payload[
-        1 + 3 + 2 + sizeof(Random) + 1 + sid_l
-    ], 3);
+    constexpr auto handshake_preamble_l = 4;
+    auto handshake_type = record_payload[0];
+    
+    // FIXME: this depends on the host byte order (mine is len)
+    auto handshake_payload_l = record_payload[1] << 16 
+        | record_payload[2] << 8
+        | record_payload[3];
 
-    std::cout << std::hex << std::setfill('0');
-    std::cout << std::setw(2) 
-        << "sv: " << +decoded.server_version[0] << " "
-        << +decoded.server_version[1] << "\n"
-        << "c: " << +decoded.compression_method << "\n"
-        << "cs: " << +decoded.cipher_suite[0] << " " 
-        << +decoded.cipher_suite[1] << "\n";
-    for (int i = 0; i < sid_l; i++) {
-        std::cout << +decoded.session_id[i] << " ";
+    if (length - handshake_preamble_l != handshake_payload_l) {
+        std::cout << "Handshake payload_length discrepency"
+            " to record_payload length" << std::endl;
+        abort();
     }
-    std::cout << std::endl;
+
+    switch (handshake_type) {
+        case MSGT_SRV_HELLO: {
+            std::cout << "Handshake Type: ServerHello" << std::endl;
+
+            ServerHello decoded;
+            bzero(&decoded, sizeof(decoded));
+            memcpy(&decoded, &record_payload[
+                handshake_preamble_l
+            ], 2 + sizeof(Random) + 1);
+            memcpy(&decoded.session_id, &record_payload[
+                handshake_preamble_l + 2 + sizeof(Random) + 1
+            ], decoded.session_id_length);
+            memcpy(&decoded.cipher_suite, &record_payload[
+                handshake_preamble_l + 2 + sizeof(Random) + 1 + decoded.session_id_length
+            ], 3);
+
+            std::cout << std::hex << std::setfill('0');
+            std::cout << std::setw(2) 
+                << "sv: " << +decoded.server_version[0] << " "
+                << +decoded.server_version[1] << "\n"
+                << "c: " << +decoded.compression_method << "\n"
+                << "cs: " << +decoded.cipher_suite[0] << " " 
+                << +decoded.cipher_suite[1] << "\n";
+            for (int i = 0; i < decoded.session_id_length; i++) {
+                std::cout << +decoded.session_id[i] << " ";
+            }
+            std::cout << std::dec << std::endl;
+            break;
+        }
+        default:
+            std::cout << "Unsupported Handshake type: "
+                << + handshake_type << std::endl;
+            abort();
+    }
 }
 
