@@ -62,11 +62,15 @@ struct ServerHello {
 };
 
 
-#define MSGT_CLI_HELLO 1
-#define MSGT_SRV_HELLO 2
-template<typename T> constexpr uint8_t msg_type (); 
-template<> constexpr uint8_t msg_type <ClientHello> ();
-template<> constexpr uint8_t msg_type <ServerHello> ();
+template<typename T> consteval uint8_t msg_type() {
+    return 255;
+}
+template<> consteval uint8_t msg_type<ClientHello>() {
+    return 1;
+}
+template<> consteval uint8_t msg_type<ServerHello>(){
+    return 2;
+}
 
 template<typename T>
 struct Handshake {

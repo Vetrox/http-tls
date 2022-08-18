@@ -115,7 +115,7 @@ void try_decode(std::deque<uint8_t> &data) {
     }
 
     switch (handshake_type) {
-        case MSGT_SRV_HELLO: {
+        case msg_type<ServerHello>(): {
             std::cout << "Handshake Type: ServerHello" << std::endl;
 
             ServerHello decoded;

@@ -2,10 +2,6 @@
 #include <chrono>
 #include "string.h"
 
-template<> constexpr uint8_t msg_type<ClientHello>() { return 1; }
-template<> constexpr uint8_t msg_type<ServerHello>() { return 2; }
-template<typename T> constexpr uint8_t msg_type() { return 255; }
-
 TLSPlaintext<Handshake<ClientHello>> client_hello() {
     const auto p1 = std::chrono::system_clock::now(); 
     const uint32_t time = std::chrono::duration_cast<std::chrono::seconds>(
