@@ -66,8 +66,8 @@ template<> uint8_t msg_type <ServerHello> ();
 template<typename T>
 struct Handshake {
     uint8_t msg_type = ::msg_type<T>(); // handshake type (client_hello) 
-    uint8_t length1 = sizeof(T) & 0xff0000;             /* bytes in message */
-    uint8_t length2 = sizeof(T) & 0x00ff00;
+    uint8_t length1 = (sizeof(T) & 0xff0000) >> 16;             /* bytes in message */
+    uint8_t length2 = (sizeof(T) & 0x00ff00) >> 8;
     uint8_t length3 = sizeof(T) & 0x0000ff; // <-- lsb
     T body;
 };
@@ -76,7 +76,7 @@ template<typename T>
 struct TLSPlaintext {
     uint8_t type = 22; // handshake
     uint8_t protocol_version[2] = {3,3}; // tls1.2 record
-    uint8_t length1 = sizeof(T) & 0xff00;
+    uint8_t length1 = (sizeof(T) & 0xff00) >> 8;
     uint8_t length2 = sizeof(T) & 0x00ff;
     uint8_t fragment[sizeof(T)]; 
 };
