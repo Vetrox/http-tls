@@ -1,5 +1,7 @@
 #pragma once
 #include "stdint.h"
+#include <arpa/inet.h>
+
 
 #pragma pack(push, 1)
 struct Random {
@@ -76,8 +78,7 @@ template<typename T>
 struct TLSPlaintext {
     uint8_t type = 22; // handshake
     uint8_t protocol_version[2] = {3,3}; // tls1.2 record
-    uint8_t length1 = (sizeof(T) & 0xff00) >> 8;
-    uint8_t length2 = sizeof(T) & 0x00ff;
+    uint16_t length = htons(sizeof(T));
     uint8_t fragment[sizeof(T)]; 
 };
 #pragma pack(pop)
