@@ -77,7 +77,7 @@ void try_decode(std::deque<uint8_t> &data) {
         return;
     }
     std::cout << "try_decode" << std::endl;   
-    uint16_t length = (data[3] << 8) | (data[4]); // use ntohs
+    uint16_t length = ntohs(*(uint16_t*) &data[3]);
     std::cout << "PCKLEN: " << length << std::endl;
     if (data.size() < length + 5) {
         return; // wait for tcp to finish
@@ -123,4 +123,3 @@ void try_decode(std::deque<uint8_t> &data) {
     }
     std::cout << std::endl;
 }
-
