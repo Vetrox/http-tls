@@ -23,9 +23,9 @@ struct ClientHello {
     /* The ID of a session the client wishes to use for this connection.
      * This field is empty if no session_id is available, or if the
      * client wishes to generate new security parameters. */
-    uint16_t session_id_length = 0; // should be only 8 bit and cypher_len should be 16 instead??!
+    uint8_t session_id_length = 0;
     uint8_t session_id[0]; // <0..32> meaning 0 to 32 bytes.
-    uint8_t cipher_suites_length = 34;
+    uint16_t cipher_suites_length = htons(34);
     uint8_t cipher_suites [34] = { 
         0x13, 0x01,
         0x13, 0x03,
