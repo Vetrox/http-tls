@@ -2,4 +2,4 @@
 
 #include <string>
 
-void request(const char*, std::string, uint8_t*, size_t);
+void request(const char*, uint8_t*, size_t);

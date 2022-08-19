@@ -23,7 +23,7 @@
 
 void try_decode(std::deque<uint8_t>&);
 
-void request(const char* ip, std::string domain, uint8_t* payload, size_t payload_length) {
+void request(const char* ip, uint8_t* payload, size_t payload_length) {
     int sck = 0;
     uint8_t data[1024];
 

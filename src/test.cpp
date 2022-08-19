@@ -15,9 +15,7 @@ int main() {
     }
     std::cout << std::endl;
 
-    request("93.184.216.34", "example.com", b, sizeof(handshake)); // maybe consider the packing bytes. and don't send them
-
-    // std::cout << "GOT:\n" << resp << std::endl;
+    request("137.248.1.81", b, sizeof(handshake)); // maybe consider the packing bytes. and don't send them
 
     return 0;
 }
