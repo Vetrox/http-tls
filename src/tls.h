@@ -5,7 +5,7 @@
 #include <array>
 
 #define ltobEN24(num) {(num & 0xff0000) >> 16, (num & 0xff00) >> 8, (num & 0xff)}
-#define btolEN24(arr) (arr[0] << 16 | arr[1] << 8 | arr[2])
+#define btolEN24_u32(arr) (((uint32_t) arr[0]) << 16 | ((uint32_t) arr[1]) << 8 | ((uint32_t) arr[2]))
 
 #pragma pack(push, 1)
 struct Random {
