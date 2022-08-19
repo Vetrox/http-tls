@@ -146,6 +146,42 @@ void try_decode(std::deque<uint8_t> &data) {
             }
             case msg_type<Certificates>(): {
                 std::cout << "it's certificates" << std::endl;
+                
+                int offset = handshake_preamble_l;
+                Certificates certificates;
+                // NOTE: certificates.length not populated
+                offset += 3;
+
+                for (int i = 0; i < length; i++) {
+                    if (
+                            record_payload[i] == 0x13 &&
+                            record_payload[i+1] == 0x8d && 
+                            record_payload[i+2] == 0x06
+                       ) {
+                        std::cout << "found byte at: " << +i << std::endl;
+                    }
+                }
+
+
+                for (; offset < length - 3;) {
+                    std::cout << "offset: " << +offset << std::endl;
+
+                    std::cout << "remaining: " << length - offset << std::endl;
+                    int cert_len = btolEN24_u32((&record_payload[offset])); 
+                    offset += 3;
+                    std::cout << "certlen: " << cert_len << std::endl;
+                    Certificate cert;
+                    for (int i = 0; i < cert_len; i++) {
+                        cert.bytes.push_back(record_payload[offset + i]);
+                    }
+                    certificates.certs.push_back(cert);
+                    offset += cert_len;
+                    offset += 64; // empirically discovered offset
+                }
+
+                std::cout << "NumofCerts: " << +certificates.certs.size() << std::endl;
+                
+
                 break;
             }
             case msg_type<ServerHelloDone>(): {
@@ -159,3 +195,4 @@ void try_decode(std::deque<uint8_t> &data) {
         }
     }
 }
+
