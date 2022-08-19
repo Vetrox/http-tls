@@ -148,6 +148,10 @@ void try_decode(std::deque<uint8_t> &data) {
                 std::cout << "it's certificates" << std::endl;
                 break;
             }
+            case msg_type<ServerHelloDone>(): {
+                std::cout << "it's serverhellodone" << std::endl;
+                break;
+            }
             default:
                 std::cout << "Unsupported Handshake type: "
                     << + handshake_type << std::endl;
@@ -155,4 +159,3 @@ void try_decode(std::deque<uint8_t> &data) {
         }
     }
 }
-

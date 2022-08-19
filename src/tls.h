@@ -74,6 +74,7 @@ struct Certificates {
     std::vector<Certificate> certs;
 };
 
+struct ServerHelloDone {};
 
 template<typename T> consteval uint8_t msg_type() {
     return 255;
@@ -86,6 +87,9 @@ template<> consteval uint8_t msg_type<ServerHello>(){
 }
 template<> consteval uint8_t msg_type<Certificates>(){
     return 11;
+}
+template<> consteval uint8_t msg_type<ServerHelloDone>(){
+    return 14;
 }
 
 
