@@ -2,6 +2,10 @@
 #include "stdint.h"
 #include <arpa/inet.h>
 #include <vector>
+#include <array>
+
+#define ltobEN24(num) {(num & 0xff0000) >> 16, (num & 0xff00) >> 8, (num & 0xff)}
+#define btolEN24(arr) (arr[0] << 16 | arr[1] << 8 | arr[2])
 
 #pragma pack(push, 1)
 struct Random {
@@ -88,9 +92,7 @@ template<> consteval uint8_t msg_type<Certificates>(){
 template<typename T>
 struct Handshake {
     uint8_t msg_type = ::msg_type<T>(); // handshake type (client_hello) 
-    uint8_t length1 = (sizeof(T) & 0xff0000) >> 16;             /* bytes in message */
-    uint8_t length2 = (sizeof(T) & 0x00ff00) >> 8;
-    uint8_t length3 = sizeof(T) & 0x0000ff; // <-- lsb
+    uint8_t length[3] = ltobEN24(sizeof(T));             /* bytes in message */
     T body;
 };
 
