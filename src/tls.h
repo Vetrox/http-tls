@@ -1,7 +1,7 @@
 #pragma once
 #include "stdint.h"
 #include <arpa/inet.h>
-
+#include <vector>
 
 #pragma pack(push, 1)
 struct Random {
@@ -61,6 +61,15 @@ struct ServerHello {
     // uint16_t extensions_length; // FIXME: when we provide extensions to the server, they might send some of them back here
 };
 
+struct Certificate {
+    std::vector<uint8_t> bytes;
+};
+
+struct Certificates {
+    uint8_t length[3]; // don't even bother
+    std::vector<Certificate> certs;
+};
+
 
 template<typename T> consteval uint8_t msg_type() {
     return 255;
@@ -71,6 +80,10 @@ template<> consteval uint8_t msg_type<ClientHello>() {
 template<> consteval uint8_t msg_type<ServerHello>(){
     return 2;
 }
+template<> consteval uint8_t msg_type<Certificates>(){
+    return 11;
+}
+
 
 template<typename T>
 struct Handshake {
