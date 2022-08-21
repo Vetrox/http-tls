@@ -1,6 +1,8 @@
 #include "http.h"
 #include <iostream>
 
+#include "certparser.h"
+
 #include "sys/socket.h"
 #include "sys/types.h"
 #include "netinet/in.h"
@@ -164,12 +166,14 @@ void try_decode(std::deque<uint8_t> &data) {
                     std::cout << "certlen: " << cert_len << std::endl;
                     
                     Certificate cert;
-                    std::cout << std::hex << std::setfill('0');
+                     std::cout << std::hex << std::setfill('0');
                     for (int i = 0; i < cert_len; i++) {
-                        std::cout << std::setw(2) <<  (int) data[0];
+                        cert.bytes.push_back(data[0]);
+                         std::cout << std::setw(2) <<  (int) data[0];
                         data.pop_front();
                     }
-                    std::cout << std::dec;
+                    std::cout << std::dec << std::endl;
+                    parse(cert.bytes);
                     certificates.certs.push_back(cert);
                     offset += 3 + cert_len;
                     std::cout << std::endl;
