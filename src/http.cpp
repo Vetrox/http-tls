@@ -25,7 +25,7 @@ void try_decode(std::deque<uint8_t>&);
 
 void request(const char* ip, uint8_t* payload, size_t payload_length) {
     int sck = 0;
-    uint8_t data[1024];
+    uint8_t data[4096];
 
     struct sockaddr_in ipOfServer; 
  
@@ -89,10 +89,7 @@ void try_decode(std::deque<uint8_t> &data) {
         }
         std::cout << "try_decode: record_payload_length: " << length << std::endl;
 
-        uint8_t record_payload [length]; // maybe stackoverflow
-        memcpy(record_payload, &data[5], length);
-
-        for (int i = 0; i < length + 5; i++) {
+        for (int i = 0; i < 5; i++) {
             data.pop_front();
         }
 
@@ -102,44 +99,50 @@ void try_decode(std::deque<uint8_t> &data) {
         }
 
         constexpr auto handshake_preamble_l = 4;
-        auto handshake_type = record_payload[0];
+        auto handshake_type = data[0];
         
         // FIXME: this depends on the host byte order (mine is len)
-        auto handshake_payload_l = record_payload[1] << 16 
-            | record_payload[2] << 8
-            | record_payload[3];
+        auto handshake_payload_l = data[1] << 16 
+            | data[2] << 8
+            | data[3];
 
         if (length - handshake_preamble_l != handshake_payload_l) {
             std::cout << "Handshake payload_length discrepency"
                 " to record_payload length" << std::endl;
             abort();
         }
+        
+        for (int i = 0; i < handshake_preamble_l; i++) {
+            data.pop_front();
+        }
 
         switch (handshake_type) {
             case msg_type<ServerHello>(): {
                 std::cout << "Handshake Type: ServerHello" << std::endl;
-
+                
                 ServerHello decoded;
                 bzero(&decoded, sizeof(decoded));
-                memcpy(&decoded, &record_payload[
-                    handshake_preamble_l
-                ], 2 + sizeof(Random) + 1);
-                memcpy(&decoded.session_id, &record_payload[
-                    handshake_preamble_l + 2 + sizeof(Random) + 1
-                ], decoded.session_id_length);
-                memcpy(&decoded.cipher_suite, &record_payload[
-                    handshake_preamble_l + 2 + sizeof(Random) + 1 + decoded.session_id_length
-                ], 3);
-
-                std::cout << std::hex << std::setfill('0');
-                std::cout << std::setw(2) 
-                    << "sv: " << +decoded.server_version[0] << " "
-                    << +decoded.server_version[1] << "\n"
-                    << "c: " << +decoded.compression_method << "\n"
-                    << "cs: " << +decoded.cipher_suite[0] << " " 
-                    << +decoded.cipher_suite[1] << "\n";
+                for (int i = 0; i < 2 + sizeof(Random) + 1; i++) {
+                    ((uint8_t*) &decoded)[i] = data[0];
+                    data.pop_front();
+                }
                 for (int i = 0; i < decoded.session_id_length; i++) {
-                    std::cout << +decoded.session_id[i] << " ";
+                    decoded.session_id[i] = data[0];
+                    data.pop_front();
+                }
+                for (int i = 0; i < 3; i++) {
+                    ((uint8_t*) &decoded.cipher_suite)[i] = data[0];
+                    data.pop_front();
+                }
+                std::cout << std::hex << std::setfill('0');
+                std::cout 
+                    << "sv: " << std::setw(2) << (int) decoded.server_version[0] << " "
+                    << std::setw(2) << (int) decoded.server_version[1] << "\n"
+                    << "c: " << std::setw(2) << (int) decoded.compression_method << "\n"
+                    << "cs: " << std::setw(2) << (int) decoded.cipher_suite[0] << " " 
+                    << std::setw(2) << (int) decoded.cipher_suite[1] << "\n";
+                for (int i = 0; i < decoded.session_id_length; i++) {
+                    std::cout << std::setw(2) << (int) decoded.session_id[i] << " ";
                 }
                 std::cout << std::dec << std::endl;
                 break;
@@ -147,36 +150,29 @@ void try_decode(std::deque<uint8_t> &data) {
             case msg_type<Certificates>(): {
                 std::cout << "it's certificates" << std::endl;
                 
-                int offset = handshake_preamble_l;
                 Certificates certificates;
                 // NOTE: certificates.length not populated
-                offset += 3;
-
-                for (int i = 0; i < length; i++) {
-                    if (
-                            record_payload[i] == 0x13 &&
-                            record_payload[i+1] == 0x8d && 
-                            record_payload[i+2] == 0x06
-                       ) {
-                        std::cout << "found byte at: " << +i << std::endl;
-                    }
+                for (int i = 0; i < 3; i++) {
+                    data.pop_front(); // NOTE: certificates.length not populated
                 }
 
-
-                for (; offset < length - 3;) {
-                    std::cout << "offset: " << +offset << std::endl;
-
-                    std::cout << "remaining: " << length - offset << std::endl;
-                    int cert_len = btolEN24_u32((&record_payload[offset])); 
-                    offset += 3;
-                    std::cout << "certlen: " << cert_len << std::endl;
-                    Certificate cert;
-                    for (int i = 0; i < cert_len; i++) {
-                        cert.bytes.push_back(record_payload[offset + i]);
+                for (int offset = 0; offset < length - 3;) {
+                    int cert_len = btolEN24_u32((&data[0])); 
+                    for (int i = 0; i < 3; i++) {
+                        data.pop_front();
                     }
+                    std::cout << "certlen: " << cert_len << std::endl;
+                    
+                    Certificate cert;
+                    std::cout << std::hex << std::setfill('0');
+                    for (int i = 0; i < cert_len; i++) {
+                        std::cout << std::setw(2) <<  (int) data[0];
+                        data.pop_front();
+                    }
+                    std::cout << std::dec;
                     certificates.certs.push_back(cert);
-                    offset += cert_len;
-                    offset += 64; // empirically discovered offset
+                    offset += 3 + cert_len;
+                    std::cout << std::endl;
                 }
 
                 std::cout << "NumofCerts: " << +certificates.certs.size() << std::endl;
