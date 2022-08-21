@@ -1,5 +1,6 @@
 #include "certparser.h"
 #include <iostream>
+#include <iomanip>
 
 // from: https://www.itu.int/rec/T-REC-X.690-202102-I/en
 enum IDClass {
@@ -51,6 +52,8 @@ std::string encoding_name(uint8_t octet) {
     }
 }
 
+
+// FIXME: this is not complete: use Table 1: Universal class tag assignments of ITU-T X.680 | ISO/IEC 8824-1
 // 31 = comprise leading octet followed by one or more subsequent octets (curr. unsupportet)
 enum Tag {
     Reserved = 0,
@@ -174,10 +177,18 @@ uint64_t parse_length(std::span<uint8_t> octets, int* index) {
         return short_length(octets[0]);
     }
     
-    // FIXME: assuming the "definite"-Form
+    // NOTE: Distinguished Encoding Rules (DER) asserts this to have the "definite"-Form
     
     return long_length(octets, index);
 }
+
+/*
+ * FIXME: possibly incomplete. see section 11 "Restrictions on BER employed by both CER and DER"
+ * Distinguished Encoding Rules:
+ * - Use "definite"-Length form 
+ * - Bitstring, octetstring, and restricted characterstring shall use primitive encoding. 
+ * - The order of Set members shall be in ascending tag-id 
+ */
 
 
 /*
@@ -202,17 +213,31 @@ bool parse_boolean(uint8_t octet) { // just as c
     }
 }
 
-int parse_integer(uint8_t octet) { // section 8.3 (vague)
-    std::cout << "ERROR: Unsupported" << std::endl;
-    abort();
+std::span<uint8_t> parse_integer(std::span<uint8_t> octets) {
+    return octets;
 }
 
-int parse_enum(uint8_t octet) {
-    return parse_integer(octet);
+std::span<uint8_t> parse_enum(std::span<uint8_t> octets) {
+    return parse_integer(octets);
+}
+
+std::span<uint8_t> parse_object(std::span<uint8_t> octets) {
+    return octets; // FIXME: unclear what section 8.19 means
 }
 
 // parse_real unsupported
 
+
+void print_hex(std::span<uint8_t> octets) {
+    std::cout << std::hex << std::setfill('0');
+    bool first = true;
+    for (auto& octet : octets) {
+        if (!first) std::cout << ":";
+        first = false;
+        std::cout << std::setw(2) << (int) octet;
+    }
+    std::cout << std::dec << std::endl;
+}
 
 void print_octet(uint8_t octet, size_t indent = 0) {
     for (int i = 0; i < indent; i++) {
@@ -238,20 +263,24 @@ IDToken parse_id_octet(uint8_t octet) {
 }
 
 void parse(std::span<uint8_t> data, size_t indent) {
-    for (int i = 0; i < data.size(); i++) {
+    for (int i = 0; i < data.size();) {
         print_octet(data[i], indent);
         IDToken id = parse_id_octet(data[i]);
         i++;
         for (int j = 0; j < indent; j++) {
             std::cout << " ";
         }
-        if (id.id_encoding == Encoding::Primitive) {
-            std::cout << "CONTENT HERE" << std::endl;
-            continue;
-        }
+
         uint64_t length = parse_length(std::span(data.begin() + i, data.end()), &i);
-        std::cout << "LENGTH: " << length << " BYTES" << std::endl;
-        parse(std::span(data.begin() + i, data.begin() + i + length), indent + 1);
+        std::cout << "LENGTH: " << length << " BYTES. ";
+        std::span<uint8_t> span = std::span<uint8_t>(data.begin() + i, data.begin() + i + length);
+       
+        if (id.id_encoding == Encoding::Primitive){
+            print_hex(span);
+        } else {
+             std::cout << std::endl;
+            parse(span, indent + 1);
+        }
         i += length;
     }
 }
