@@ -225,6 +225,10 @@ std::span<uint8_t> parse_object(std::span<uint8_t> octets) {
     return octets; // FIXME: unclear what section 8.19 means
 }
 
+std::string parse_string(std::span<uint8_t> octets) {
+    return std::string(octets.begin(), octets.end());
+}
+
 // parse_real unsupported
 
 
@@ -245,7 +249,7 @@ void print_octet(uint8_t octet, size_t indent = 0) {
     }
     std::cout << "CLASS: " << classname(octet) << " (" << id_class(octet) << "), "
         << "ENCOD: " << encoding_name(octet) << " (" << id_encoding(octet) << "), "
-        << "TAG: " << tagname[id_tag(octet)] << " (" << id_tag(octet) << ")" << std::endl;
+        << "TAG: " << tagname[id_tag(octet)] << " (" << id_tag(octet) << ")";
 }
 
 struct IDToken {
@@ -262,23 +266,33 @@ IDToken parse_id_octet(uint8_t octet) {
     };
 }
 
+void print_indent(size_t num) {
+    for (int i; i < num; i++) {
+        std::cout << " ";
+    }
+}
+
+
 void parse(std::span<uint8_t> data, size_t indent) {
     for (int i = 0; i < data.size();) {
         print_octet(data[i], indent);
         IDToken id = parse_id_octet(data[i]);
         i++;
-        for (int j = 0; j < indent; j++) {
-            std::cout << " ";
-        }
+    
+        print_indent(indent);
 
         uint64_t length = parse_length(std::span(data.begin() + i, data.end()), &i);
-        std::cout << "LENGTH: " << length << " BYTES. ";
+        std::cout << ", LENGTH: " << length << " BYTES." << std::endl;
         std::span<uint8_t> span = std::span<uint8_t>(data.begin() + i, data.begin() + i + length);
        
-        if (id.id_encoding == Encoding::Primitive){
-            print_hex(span);
+        if (id.id_encoding == Encoding::Primitive) {
+            print_indent(indent + 1);
+            if (id.id_tag == Tag::UTF8String || id.id_tag == Tag::PrintableString) {
+                std::cout << parse_string(span) << std::endl;
+            } else {
+                print_hex(span); 
+            }
         } else {
-             std::cout << std::endl;
             parse(span, indent + 1);
         }
         i += length;
