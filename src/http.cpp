@@ -156,7 +156,7 @@ void try_decode(std::deque<uint8_t> &data) {
                     data.pop_front(); // NOTE: certificates.length not populated
                 }
 
-                for (int offset = 0; offset < length - 3;) {
+                for (int offset = 0; offset < handshake_payload_l - 3;) {
                     int cert_len = btolEN24_u32((&data[0])); 
                     for (int i = 0; i < 3; i++) {
                         data.pop_front();
