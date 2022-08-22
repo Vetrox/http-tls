@@ -6,7 +6,9 @@
 #include <stdexcept>
 #include <vector>
 
-void parse(std::span<uint8_t>, size_t indent = 0);
+class ASNObj;
+
+std::vector<ASNObj> parse(std::span<uint8_t>);
 std::string as_hex(std::vector<uint8_t>);
 
 static std::unordered_map<std::string, std::string> oid_name = {

@@ -256,11 +256,12 @@ std::vector<ASNObj>* parse_impl(std::span<uint8_t> data) {
     return objs;
 }
 
-void parse(std::span<uint8_t> data, size_t indent) {
+std::vector<ASNObj> parse(std::span<uint8_t> data) {
     auto* parsed = parse_impl(data);
-
-    for (auto obj : *parsed) {
-        std::cout << obj.to_string() << std::endl;
+    
+    if (!parsed) {
+        std::cout << "ERROR: PARSE_IMPL returned null";
     }
 
+    return *parsed;
 }

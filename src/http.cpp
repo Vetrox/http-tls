@@ -173,6 +173,7 @@ void try_decode(std::deque<uint8_t> &data) {
                         data.pop_front();
                     }
                     std::cout << std::dec << std::endl;
+                    // TODO: handle certificate parsed result
                     parse(cert.bytes);
                     certificates.certs.push_back(cert);
                     offset += 3 + cert_len;
