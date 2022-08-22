@@ -272,6 +272,47 @@ void print_indent(size_t num) {
     }
 }
 
+void print_oid(std::span<uint8_t> octets) {
+    // take first byte
+    
+    std::string oid = "";
+    oid += std::to_string(octets[0] / 40) + "." + std::to_string(octets[0] % 40);
+
+    int i_start = 1;
+    int i_cur = 1;
+    while (true) {
+        while (true) {
+            if (i_cur >= octets.size()) {
+                if (oid_name.find(oid) != oid_name.end()) {
+                    std::cout << oid_name[oid] << " (" << oid << ")" << std::endl;
+                } else {
+                    std::cout << "WARNING: Could not decode oid " << oid << std::endl;
+                }
+                return;
+            }
+            if ((octets[i_cur++] & 0b1000'0000) == 0) break;
+        }
+
+        if ((i_cur - i_start) <= 0) {
+            return;
+        }
+
+        if ((i_cur - i_start) > 8) {
+            std::cout << "ERROR: Oid with more than 64 bit number" << std::endl;
+            abort();
+        }
+
+        uint64_t num = 0;
+        for (int i = 0; i < (i_cur - i_start); i++) {
+            num <<= 7;
+            num |= ((uint64_t) (octets[i_start+i] & 0b0111'1111));
+        }
+        oid += "." + std::to_string(num);
+        i_start = i_cur;
+    }
+
+}
+
 
 void parse(std::span<uint8_t> data, size_t indent) {
     for (int i = 0; i < data.size();) {
@@ -289,6 +330,8 @@ void parse(std::span<uint8_t> data, size_t indent) {
             print_indent(indent + 1);
             if (id.id_tag == Tag::UTF8String || id.id_tag == Tag::PrintableString) {
                 std::cout << parse_string(span) << std::endl;
+            } else if(id.id_tag == Tag::OBJECT_IDENTIFIER) {
+                print_oid(span);
             } else {
                 print_hex(span); 
             }

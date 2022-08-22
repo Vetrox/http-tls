@@ -186,6 +186,8 @@ void try_decode(std::deque<uint8_t> &data) {
             }
             case msg_type<ServerHelloDone>(): {
                 std::cout << "it's serverhellodone" << std::endl;
+                // TODO: we abort here so we quit faster.
+                abort();
                 break;
             }
             default:
