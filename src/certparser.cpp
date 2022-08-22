@@ -1,14 +1,7 @@
 #include "certparser.h"
 #include <iostream>
 #include <iomanip>
-
-// from: https://www.itu.int/rec/T-REC-X.690-202102-I/en
-enum IDClass {
-    Universal = 0b0000'0000,
-    Application = 0b0100'0000,
-    Context_specific = 0b1000'0000,
-    Private = 0b1100'0000
-};
+#include <sstream>
 
 
 IDClass id_class(uint8_t octet) {
@@ -31,10 +24,6 @@ std::string classname(uint8_t octet) {
     }
 }
 
-enum Encoding {
-    Primitive = 0b0000'0000, // no eol
-    Constructed = 0b0010'0000 // with end-of-line octets
-};
 
 Encoding id_encoding(uint8_t octet) {
     octet &= 0b0010'0000;
@@ -53,40 +42,6 @@ std::string encoding_name(uint8_t octet) {
 }
 
 
-// FIXME: this is not complete: use Table 1: Universal class tag assignments of ITU-T X.680 | ISO/IEC 8824-1
-// 31 = comprise leading octet followed by one or more subsequent octets (curr. unsupportet)
-enum Tag {
-    Reserved = 0,
-    BOOLEAN,
-    INTEGER,
-    BIT_STRING,
-    OCTET_STRING,
-    NIL, // NULL
-    OBJECT_IDENTIFIER,
-    ObjectDescriptor,
-    INSTANCE_OF, // EXTERNAL
-    REAL,
-    ENUMERATED,
-    EMBEDDED_PDV,
-   	UTF8String,
-   	RELATIVE_OID,
-   	SEQUENCE = 16, // SEQUENCE OF
-   	SET, // SET OF
-   	NumericString,
-   	PrintableString,
-   	TeletexString, // T61String
-   	VideotexString,
-   	IA5String,
-   	UTCTime,
-   	GeneralizedTime,
-   	GraphicString,
-   	VisibleString, // ISO646
-   	GeneralString,
-    UniversalString,
-    CHARACTER_STRING,
- 	BMPString,
-    ComposeUnsupported = 0b1'1111
-};
 
 Tag id_tag(uint8_t octet) {
     octet &= 0b0001'1111;
@@ -94,40 +49,6 @@ Tag id_tag(uint8_t octet) {
 }
 
 
-static std::string tagname[32] {
-    "Reserved",
-    "BOOLEAN",
-    "INTEGER",
-    "BIT_STRING",
-    "OCTET_STRING",
-    "NIL", 
-    "OBJECT_IDENTIFIER",
-    "ObjectDescriptor",
-    "INSTANCE_OF", 
-    "REAL",
-    "ENUMERATED",
-    "EMBEDDED_PDV",
-   	"UTF8String",
-   	"RELATIVE_OID",
-    "NotATag",
-    "NotATag",
-    "SEQUENCE",
-   	"SET", 
-   	"NumericString",
-   	"PrintableString",
-   	"TeletexString",
-   	"VideotexString",
-   	"IA5String",
-   	"UTCTime",
-   	"GeneralizedTime",
-   	"GraphicString",
-   	"VisibleString",
-   	"GeneralString",
-    "UniversalString",
-    "CHARACTER_STRING",
- 	"BMPString",
-    "ComposeUnsupported"
-};
 
 enum LengthType {
     Short = 0b0000'0000,
@@ -232,15 +153,17 @@ std::string parse_string(std::span<uint8_t> octets) {
 // parse_real unsupported
 
 
-void print_hex(std::span<uint8_t> octets) {
-    std::cout << std::hex << std::setfill('0');
+std::string as_hex(std::vector<uint8_t> octets) {
+    std::stringstream s;
+    s << std::hex << std::setfill('0');
     bool first = true;
     for (auto& octet : octets) {
-        if (!first) std::cout << ":";
+        if (!first) s << ":";
         first = false;
-        std::cout << std::setw(2) << (int) octet;
+        s << std::setw(2) << (int) octet;
     }
-    std::cout << std::dec << std::endl;
+    s << std::dec;
+    return s.str();
 }
 
 void print_octet(uint8_t octet, size_t indent = 0) {
@@ -252,11 +175,6 @@ void print_octet(uint8_t octet, size_t indent = 0) {
         << "TAG: " << tagname[id_tag(octet)] << " (" << id_tag(octet) << ")";
 }
 
-struct IDToken {
-    IDClass id_class;
-    Encoding id_encoding;
-    Tag id_tag;
-};
 
 IDToken parse_id_octet(uint8_t octet) {
     return {
@@ -266,13 +184,14 @@ IDToken parse_id_octet(uint8_t octet) {
     };
 }
 
+
 void print_indent(size_t num) {
     for (int i; i < num; i++) {
         std::cout << " ";
     }
 }
 
-void print_oid(std::span<uint8_t> octets) {
+std::string parse_oid(std::span<uint8_t> octets) {
     // take first byte
     
     std::string oid = "";
@@ -283,18 +202,13 @@ void print_oid(std::span<uint8_t> octets) {
     while (true) {
         while (true) {
             if (i_cur >= octets.size()) {
-                if (oid_name.find(oid) != oid_name.end()) {
-                    std::cout << oid_name[oid] << " (" << oid << ")" << std::endl;
-                } else {
-                    std::cout << "WARNING: Could not decode oid " << oid << std::endl;
-                }
-                return;
+                return oid;
             }
             if ((octets[i_cur++] & 0b1000'0000) == 0) break;
         }
 
         if ((i_cur - i_start) <= 0) {
-            return;
+            return oid;
         }
 
         if ((i_cur - i_start) > 8) {
@@ -310,37 +224,43 @@ void print_oid(std::span<uint8_t> octets) {
         oid += "." + std::to_string(num);
         i_start = i_cur;
     }
-
 }
 
 
-void parse(std::span<uint8_t> data, size_t indent) {
+std::vector<ASNObj>* parse_impl(std::span<uint8_t> data) {
+    auto* objs = new std::vector<ASNObj>();
     for (int i = 0; i < data.size();) {
-        print_octet(data[i], indent);
         IDToken id = parse_id_octet(data[i]);
         i++;
-    
-        print_indent(indent);
-
+        
         uint64_t length = parse_length(std::span(data.begin() + i, data.end()), &i);
-        std::cout << ", LENGTH: " << length << " BYTES." << std::endl;
         std::span<uint8_t> span = std::span<uint8_t>(data.begin() + i, data.begin() + i + length);
-       
+      
+        void* content;
         if (id.id_encoding == Encoding::Primitive) {
-            print_indent(indent + 1);
-            if (id.id_tag == Tag::UTF8String || id.id_tag == Tag::PrintableString) {
-                std::cout << parse_string(span) << std::endl;
-            } else if(id.id_tag == Tag::OBJECT_IDENTIFIER) {
-                print_oid(span);
+            if (id.id_tag == Tag::OBJECT_IDENTIFIER) {
+                std::string oid = parse_oid(span);
+                auto* v = new std::vector<uint8_t>(oid.begin(), oid.end());
+                content = v;
             } else {
-                print_hex(span); 
+                content = new std::vector<uint8_t>(span.begin(), span.end());
             }
         } else {
-            parse(span, indent + 1);
+            content = parse_impl(span);
         }
         i += length;
+
+        objs->emplace_back(ASNObj(id, length, content));
     }
+
+    return objs;
 }
 
+void parse(std::span<uint8_t> data, size_t indent) {
+    auto* parsed = parse_impl(data);
 
+    for (auto obj : *parsed) {
+        std::cout << obj.to_string() << std::endl;
+    }
 
+}
