@@ -74,6 +74,57 @@ void request(const char* ip, uint8_t* payload, size_t payload_length) {
     }
 }
 
+// TODO: move this adequately
+void handle_X509v3Cert(std::vector<ASNObj> cert) {  
+    // NOTE: According to https://datatracker.ietf.org/doc/html/rfc1422#appendix-A
+    std::cout << "---- interp cert ----" << std::endl;
+
+    if (cert.size() != 1) {
+        std::cout << "ERROR: Unexpected number of ASN Objects to be interpretet as one certficate. Amount: " 
+            << std::to_string(cert.size()) << std::endl;
+        abort();
+    }
+
+    
+    // FIXME: somehow the documentation doesn't mention 2 extra members beside the certicate
+    ASNObj cert_and_certSigAlg_and_certSig = cert[0];
+    ASNObj c = cert_and_certSigAlg_and_certSig.as_ASNObjs()[0];
+    auto sequence = c.as_ASNObjs();
+    if (sequence.size() != 8) {
+        std::cout << "ERROR: Certificate Contents include not exactly 8 Members. This might be because of extra optional data." << std::endl;
+        abort();
+    }
+    sequence[0].as_ASNObjs()[0].as_octets(); // version. must be 2 (to mean v3) // TODO: as_integer // NOTE: undocumented nesting
+    sequence[1].as_octets(); // serialNumber. ??? // TODO: as_integer
+    auto signature = sequence[2].as_ASNObjs();
+    signature[0].as_string(); // algorithm type. oid
+    // parse rest of signature depending on algorithm type
+    auto issuerInfo = sequence[3].as_ASNObjs(); // FIXME: undocumented
+    for (ASNObj info : issuerInfo) {
+        auto in = info.as_ASNObjs()[0].as_ASNObjs();
+        in[0].as_string(); // oid of info
+        in[1].as_string(); // the name
+    }
+    auto validity = sequence[4].as_ASNObjs();
+    validity[0].as_octets(); // notBefore. // TODO: as_UTCTime
+    validity[1].as_octets(); // notAfter. // TODO: as_UTCTime
+    auto subjectInfo = sequence[5].as_ASNObjs(); // FIXME: undocumented
+    for (ASNObj info : subjectInfo) {
+        auto in = info.as_ASNObjs()[0].as_ASNObjs();
+        in[0].as_string(); // oid of info
+        in[1].as_string(); // the name
+    }
+    auto subjectPublicKeyInfo = sequence[6].as_ASNObjs();
+    auto subjectAlorithmIdentier = subjectPublicKeyInfo[0].as_ASNObjs();
+    subjectAlorithmIdentier[0].as_string(); // algorithm type. oid
+    // parse rest of algorithm parameters depending on type
+    subjectPublicKeyInfo[1].as_octets(); // publicKey // TODO: as_bitString 
+
+
+    std::cout << "---- end ----" << std::endl;
+
+}
+
 void try_decode(std::deque<uint8_t> &data) {
     while (true) {
         if (data.size() < 5) {
@@ -163,18 +214,15 @@ void try_decode(std::deque<uint8_t> &data) {
                     for (int i = 0; i < 3; i++) {
                         data.pop_front();
                     }
-                    std::cout << "certlen: " << cert_len << std::endl;
                     
                     Certificate cert;
-                     std::cout << std::hex << std::setfill('0');
                     for (int i = 0; i < cert_len; i++) {
                         cert.bytes.push_back(data[0]);
-                         std::cout << std::setw(2) <<  (int) data[0];
                         data.pop_front();
                     }
                     std::cout << std::dec << std::endl;
                     // TODO: handle certificate parsed result
-                    parse(cert.bytes);
+                    handle_X509v3Cert(parse(cert.bytes));
                     certificates.certs.push_back(cert);
                     offset += 3 + cert_len;
                     std::cout << std::endl;
@@ -198,4 +246,5 @@ void try_decode(std::deque<uint8_t> &data) {
         }
     }
 }
+
 
