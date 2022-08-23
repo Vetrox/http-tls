@@ -15,7 +15,10 @@ public:
     void add(BigInt& other);
     void sub(BigInt& other);
     void mul(BigInt& other);
-    void divmod(BigInt& other, BigInt& out_div, BigInt& out_mod);
+    void divmod(BigInt& other, BigInt& out_div, BigInt& out_mod) const;
+    void shift_left(size_t);
+    void shift_right(size_t);
+    void set_bit(int, bool);
 
     bool is_positive() const { return m_is_positive; }
     void set_is_positive(bool is_positive) { m_is_positive = is_positive; }
