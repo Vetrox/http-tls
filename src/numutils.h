@@ -1,0 +1,31 @@
+#include <vector>
+#include <string>
+
+class BigInt {
+public:
+    BigInt(std::vector<uint8_t> data, bool is_positive) 
+        : m_data(data) 
+        , m_is_positive(is_positive)
+    {
+        ensure_minimum_data_size();
+    }
+    
+    std::string as_binary() const;
+
+    void add(BigInt& other);
+    void sub(BigInt& other);
+    void mul(BigInt& other);
+    void divmod(BigInt& other, BigInt& out_div, BigInt& out_mod);
+
+    bool is_positive() const { return m_is_positive; }
+    void set_is_positive(bool is_positive) { m_is_positive = is_positive; }
+
+    bool less_than_eq_abs(BigInt& other) const;
+private:
+    std::vector<uint8_t> m_data {}; // little endian (least significant byte first)
+    bool m_is_positive {false};
+    
+    void ensure_minimum_data_size();
+    void add_assume_both_positive(BigInt& other);
+    void sub_ordered(BigInt& other);
+};
