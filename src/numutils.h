@@ -11,6 +11,7 @@ public:
     }
     
     std::string as_binary() const;
+    std::string as_decimal() const;
 
     void add(BigInt& other);
     void sub(BigInt& other);
@@ -19,6 +20,9 @@ public:
     void shift_left(size_t);
     void shift_right(size_t);
     void set_bit(int, bool);
+
+    void operator=(BigInt& other);
+    void operator=(BigInt&& other);
 
     bool is_positive() const { return m_is_positive; }
     void set_is_positive(bool is_positive) { m_is_positive = is_positive; }

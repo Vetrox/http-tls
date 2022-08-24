@@ -2,23 +2,32 @@
 
 #include <iostream>
 
+void BigInt::operator=(BigInt&& other) {
+    m_is_positive = other.m_is_positive;
+    m_data = other.m_data;
+    ensure_minimum_data_size();
+}
+void BigInt::operator=(BigInt& other) {
+    m_is_positive = other.m_is_positive;
+    m_data = other.m_data;
+    ensure_minimum_data_size();
+}
+
 void BigInt::divmod(BigInt& divisor, BigInt& out_div, BigInt& out_mod) const {
-    // FIXME: ensure 0ed out_div and out_mod
+    if (out_div.m_data.size() != 0 || out_mod.m_data.size() != 0) {
+        std::cout << "precondition for divmod not met: out_div and out_mod must be 0" << std::endl;
+        // TODO: implement 0 check and 0 number.
+        abort();
+    }
     out_mod.m_data = m_data;
-    std::cout << "divisor: " << divisor.as_binary() << std::endl;
     for (int i = m_data.size() - 1; i >= 0; i--) {
         for (int j = 7; j >= 0; j--) {
             auto shift_amount = i * 8 + j; // TODO: prevent "overshifting"
             auto c_divisor = BigInt(divisor.m_data, true); // FIXME: implement shift right
             c_divisor.shift_left(shift_amount);
-            std::cout << "cdi: " << c_divisor.as_binary() << std::endl;
-            std::cout << "mod: " << out_mod.as_binary() << std::endl;
             if (c_divisor.less_than_eq_abs(out_mod)) {
-                std::cout << "leq true" << std::endl;
                 out_mod.sub(c_divisor);
                 out_div.set_bit(shift_amount, true);
-            } else {
-                std::cout << "leq false" << std::endl;
             }
         }
     }
@@ -30,12 +39,11 @@ void BigInt::set_bit(int position, bool value) {
     int whole_octet_shift = position / 8;
     int sub_octet_shift = position % 8;
 
-    int minimum_octets = whole_octet_shift + (sub_octet_shift > 0 ? 1 : 0);
-    for (int i = 0; i < minimum_octets; i++) { // TODO: maybe add less
+    for (int i = m_data.size() - 1; i <= whole_octet_shift; i++) {
         m_data.push_back(0);
     }
     
-    int new_val = m_data[whole_octet_shift];
+    int new_val = m_data.at(whole_octet_shift);
     if (value) {
         new_val |= 1 << sub_octet_shift;
     } else {
@@ -80,6 +88,36 @@ void BigInt::ensure_minimum_data_size() {
     }
 }
 
+std::string BigInt::as_decimal() const {
+    std::string s = "";
+    auto div = BigInt({0}, m_is_positive);
+    auto mod = BigInt({0}, m_is_positive);
+    auto cache = BigInt(m_data, m_is_positive);
+    auto ten = BigInt({10}, true);
+    int i = 1;
+    while (!cache.less_than_eq_abs(ten)) {
+        cache.divmod(ten, div, mod);
+        if (cache.less_than_eq_abs(div)) {
+            // div didn't get smaller. (why??)
+            std::cout << "div not smaller" << std::endl;
+            abort();
+        }
+        cache = div;
+        if (mod.m_data.size() == 0) {
+            s = "0" + s;
+        } else {
+            s = std::to_string(mod.m_data[0]) + s;
+        }
+        div = BigInt({}, true); // FIXME: make m_data not directly writeable but instead do ensure_minimum_data_size afterwards
+        mod = BigInt({}, true); // TODO: set0 applicable 
+    }
+    if (cache.m_data.size() == 0) {
+        s = "0" + s;
+    } else {
+        s = std::to_string(mod.m_data[0]) + s;
+    }
+    return s;
+}
 
 std::string BigInt::as_binary() const {
     std::string s = "";
@@ -90,6 +128,7 @@ std::string BigInt::as_binary() const {
             s += is_set ? "1" : "0";
         }
     }
+    if (s.length() == 0) s = "0";
     return s;
 }
 
@@ -183,12 +222,10 @@ void BigInt::sub_ordered(BigInt& other) {
     }
     
     m_data = temp;
-    std::cout << "Updated: " << as_binary() << std::endl;
     ensure_minimum_data_size();
 }
 
 void BigInt::sub(BigInt& other) {
-    std::cout << "sub entered" << std::endl;
     bool other_inv = !other.m_is_positive;
 
     if (m_is_positive && other_inv) {
