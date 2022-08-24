@@ -94,7 +94,6 @@ std::string BigInt::as_decimal() const {
     auto mod = BigInt({0}, m_is_positive);
     auto cache = BigInt(m_data, m_is_positive);
     auto ten = BigInt({10}, true);
-    int i = 1;
     while (!cache.less_than_eq_abs(ten)) {
         cache.divmod(ten, div, mod);
         if (cache.less_than_eq_abs(div)) {
@@ -114,7 +113,7 @@ std::string BigInt::as_decimal() const {
     if (cache.m_data.size() == 0) {
         s = "0" + s;
     } else {
-        s = std::to_string(mod.m_data[0]) + s;
+        s = std::to_string(cache.m_data[0]) + s;
     }
     return s;
 }

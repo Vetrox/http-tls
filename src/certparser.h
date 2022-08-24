@@ -6,6 +6,8 @@
 #include <stdexcept>
 #include <vector>
 
+#include "numutils.h"
+
 class ASNObj;
 
 std::vector<ASNObj> parse(std::span<uint8_t>);
@@ -131,15 +133,15 @@ public:
     {
     }
 
-    bool is_primitive() {
+    bool is_primitive() const {
         return m_id.id_encoding == Encoding::Primitive;
     }
 
-    bool is_string() {
+    bool is_string() const {
         return m_id.id_tag == Tag::UTF8String || m_id.id_tag == Tag::PrintableString;
     }
 
-    bool is_oid() {
+    bool is_oid() const {
         return m_id.id_tag == Tag::OBJECT_IDENTIFIER;
     }
 
@@ -149,6 +151,12 @@ public:
 
         auto octets = as_octets();
         return std::string(octets.begin(), octets.end());
+    }
+
+    BigInt as_integer() const { // NOTE: Big endian (network endianess)
+        if (!is_primitive()) throw 444;
+        auto data = *(std::vector<uint8_t>*)m_content;
+        return BigInt(std::vector<uint8_t>(data.rbegin(), data.rend()), true);
     }
 
     std::vector<uint8_t> as_octets() {
