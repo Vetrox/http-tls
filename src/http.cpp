@@ -18,6 +18,8 @@
 #include <sstream>
 #include <iomanip>
 
+#include "numutils.h"
+
 #include <deque>
 
 //FIXME REMOVE THIS
@@ -94,35 +96,34 @@ void handle_X509v3Cert(std::vector<ASNObj> cert) {
         std::cout << "ERROR: Certificate Contents include not exactly 8 Members. This might be because of extra optional data." << std::endl;
         abort();
     }
-    sequence[0].as_ASNObjs()[0].as_octets(); // version. must be 2 (to mean v3) // TODO: as_integer // NOTE: undocumented nesting
-    sequence[1].as_octets(); // serialNumber. ??? // TODO: as_integer
+    std::cout << "version: " << sequence[0].as_ASNObjs()[0].as_integer().as_decimal() << std::endl; // version. must be 2 (to mean v3) // TODO: as_integer // NOTE: undocumented nesting
+    std::cout << "serialNumber: " << sequence[1].as_integer().as_decimal() << std::endl; // serialNumber. ??? // TODO: as_integer
+
     auto signature = sequence[2].as_ASNObjs();
-    signature[0].as_string(); // algorithm type. oid
+    std::cout << "signature: algorithm type (oid): " << signature[0].as_string() << std::endl; // algorithm type. oid
     // parse rest of signature depending on algorithm type
     auto issuerInfo = sequence[3].as_ASNObjs(); // FIXME: undocumented
     for (ASNObj info : issuerInfo) {
         auto in = info.as_ASNObjs()[0].as_ASNObjs();
-        in[0].as_string(); // oid of info
-        in[1].as_string(); // the name
+        std::cout << "issuerInfo (oid): " << in[0].as_string() << std::endl; // oid of info
+        std::cout << "issuerInfo: value: " << in[1].as_string() << std::endl; // the name
     }
     auto validity = sequence[4].as_ASNObjs();
-    validity[0].as_octets(); // notBefore. // TODO: as_UTCTime
-    validity[1].as_octets(); // notAfter. // TODO: as_UTCTime
+//    std::cout << "validity: not before: " << validity[0].as_string() << std::endl; // notBefore. // TODO: as_UTCTime
+//    std::cout << "validity: not after: " << validity[1].as_string() << std::endl; // notAfter. // TODO: as_UTCTime
     auto subjectInfo = sequence[5].as_ASNObjs(); // FIXME: undocumented
     for (ASNObj info : subjectInfo) {
         auto in = info.as_ASNObjs()[0].as_ASNObjs();
-        in[0].as_string(); // oid of info
-        in[1].as_string(); // the name
+        std::cout << "subjectInfo (oid): " << in[0].as_string() << std::endl; // oid of info
+        std::cout << "subjectInfo: value: " << in[1].as_string() << std::endl; // the name
     }
     auto subjectPublicKeyInfo = sequence[6].as_ASNObjs();
     auto subjectAlorithmIdentier = subjectPublicKeyInfo[0].as_ASNObjs();
-    subjectAlorithmIdentier[0].as_string(); // algorithm type. oid
+    std::cout << "publicKeyInfo: algorithm type (oid): " << subjectAlorithmIdentier[0].as_string() << std::endl; // algorithm type. oid
     // parse rest of algorithm parameters depending on type
-    subjectPublicKeyInfo[1].as_octets(); // publicKey // TODO: as_bitString 
-
+    std::cout << "publicKey: " << subjectPublicKeyInfo[1].as_integer().as_decimal() << std::endl; // publicKey // TODO: as_bitString 
 
     std::cout << "---- end ----" << std::endl;
-
 }
 
 void try_decode(std::deque<uint8_t> &data) {
