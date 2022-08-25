@@ -6,7 +6,7 @@ bool UnsignedBigInt::is_bit_set(size_t position) const {
     int whole_octet_shift = position / 8;
     int sub_octet_shift = position % 8;
 
-    if (m_data.size() < whole_octet_shift) {
+    if (m_data.size() <= whole_octet_shift) {
         return false;
     }
     
