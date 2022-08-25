@@ -2,26 +2,34 @@
 
 #include <vector>
 #include <string>
+#include <iostream>
 
-class BigInt {
+class UnsignedBigInt {
 public:
-    BigInt(std::vector<uint8_t> const data, bool is_positive) 
+    UnsignedBigInt() {}
+
+    UnsignedBigInt(std::vector<uint8_t> const data) 
         : m_data(data) 
-        , m_is_positive(is_positive)
     {
         ensure_minimum_data_size();
     }
 
-    BigInt(BigInt const& old_obj) 
+    UnsignedBigInt(size_t number) 
+    {
+        for (int i = 0; i < sizeof(size_t); i++) {
+            m_data.push_back((uint8_t) (number >> i*8));
+        }
+        ensure_minimum_data_size();
+    }
+
+    UnsignedBigInt(UnsignedBigInt const& old_obj) 
         : m_data(old_obj.m_data)
-        , m_is_positive(old_obj.m_is_positive) 
     {
         ensure_minimum_data_size();
     }
     
-    BigInt(BigInt const&& old_obj) 
+    UnsignedBigInt(UnsignedBigInt const&& old_obj) 
         : m_data(std::move(old_obj.m_data))
-        , m_is_positive(old_obj.m_is_positive) 
     {
         ensure_minimum_data_size();
     }
@@ -29,35 +37,45 @@ public:
     std::string as_binary() const;
     std::string as_decimal() const;
 
-    void add(BigInt const& other);
-    void sub(BigInt const& other);
-    void mul(BigInt const& other);
-    void divmod(BigInt const& other, BigInt& out_div, BigInt& out_mod) const;
-    void operator/(BigInt const& other);
-    void operator%(BigInt const& other);
-    void shift_left(size_t);
+    UnsignedBigInt operator+(UnsignedBigInt const& other) const;
+    UnsignedBigInt operator-(UnsignedBigInt const& other) const;
+    UnsignedBigInt operator*(UnsignedBigInt const& other) const;
+    void operator+=(UnsignedBigInt const& other) {
+        *this = *this + other;
+    }
+    void operator-=(UnsignedBigInt const& other) {
+        *this = *this - other;
+    }
+    void operator*=(UnsignedBigInt const& other) {
+        *this = *this * other;
+    }
+    void divmod(UnsignedBigInt const& other, UnsignedBigInt& out_div, UnsignedBigInt& out_mod) const;
+    UnsignedBigInt operator/(UnsignedBigInt const& other) const;
+    UnsignedBigInt operator%(UnsignedBigInt const& other) const;
+    void operator/=(UnsignedBigInt const& other) {
+        *this = *this / other;
+    }
+    void operator%=(UnsignedBigInt const& other) {
+        *this = *this % other;
+    }
+    void operator<<=(size_t amount);
     void shift_right(size_t);
     void set_bit(int, bool);
-    void expmod(BigInt const& exp, BigInt const& mod);
+    bool is_bit_set(size_t) const;
+    UnsignedBigInt expmod(UnsignedBigInt const& exp, UnsignedBigInt const& mod) const;
 
-    void operator=(BigInt const& other);
-    void operator=(BigInt const&& other);
+    void operator=(UnsignedBigInt const& other);
+    void operator=(UnsignedBigInt const&& other);
 
-    bool is_positive() const { return m_is_positive; }
-    void set_is_positive(bool is_positive) { m_is_positive = is_positive; }
-
-    std::strong_ordering operator<=>(BigInt const& other) const;
-    bool operator==(BigInt const& other) const {
+    std::strong_ordering operator<=>(UnsignedBigInt const& other) const;
+    bool operator==(UnsignedBigInt const& other) const {
         return (*this <=> other) == std::strong_ordering::equal;
     }
-    bool operator!=(BigInt const& other) const {
+    bool operator!=(UnsignedBigInt const& other) const {
         return !(*this == other);
     }
 private:
     std::vector<uint8_t> m_data {}; // little endian (least significant byte first)
-    bool m_is_positive {false};
     
     void ensure_minimum_data_size();
-    void add_assume_both_positive(BigInt const& other);
-    void sub_ordered(BigInt const& other);
 };

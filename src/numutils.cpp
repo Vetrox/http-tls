@@ -2,28 +2,58 @@
 
 #include <iostream>
 
-void BigInt::operator/(BigInt const& other) {
-    BigInt c_mod = BigInt({}, true);
-    BigInt c_div = BigInt({}, true);
-    
-    divmod(other, c_div, c_mod);
+bool UnsignedBigInt::is_bit_set(size_t position) const {
+    int whole_octet_shift = position / 8;
+    int sub_octet_shift = position % 8;
 
-    *this = std::move(c_div);
+    if (m_data.size() < whole_octet_shift) {
+        return false;
+    }
+    
+    return (m_data.at(whole_octet_shift) & (1 << sub_octet_shift)) != 0;
 }
 
-void BigInt::operator%(BigInt const& other) {
-    BigInt c_mod = BigInt({}, true);
-    BigInt c_div = BigInt({}, true);
+UnsignedBigInt UnsignedBigInt::operator*(UnsignedBigInt const& other) const {
+    auto ret = UnsignedBigInt(0);
+    
+    auto c_other = other; // TODO: only because of bitshift
+
+    for (int i = 0; i < m_data.size(); i++) {
+        for (int j = 0; j < 8; j++) {
+            c_other = other;
+            int offset = i*8+j;
+            if (is_bit_set(offset)) {
+                c_other <<= offset;
+                ret += c_other;
+            }
+        }
+    }
+    return ret;
+}
+
+
+UnsignedBigInt UnsignedBigInt::operator/(UnsignedBigInt const& other) const {
+    UnsignedBigInt c_mod = UnsignedBigInt({});
+    UnsignedBigInt c_div = UnsignedBigInt({});
     
     divmod(other, c_div, c_mod);
 
-    *this = std::move(c_mod);
+    return std::move(c_div);
+}
+
+UnsignedBigInt UnsignedBigInt::operator%(UnsignedBigInt const& other) const {
+    UnsignedBigInt c_mod = UnsignedBigInt({});
+    UnsignedBigInt c_div = UnsignedBigInt({});
+    
+    divmod(other, c_div, c_mod);
+
+    return std::move(c_mod);
 }
 /** Fast exponentiation:
  *  calculates this = (this^z) % n
  * 
  */
-/*void BigInt::expmod(BigInt &z, BigInt &n){
+/*void UnsignedBigInt::expmod(UnsignedBigInt &z, UnsignedBigInt &n){
     auto a1 = this;
     auto z1 = z;
     auto x = 1;
@@ -43,14 +73,14 @@ void BigInt::operator%(BigInt const& other) {
  *  calculates this = (this^z) % n
  * 
  */
-/*void BigInt::expmod(BigInt const& z, BigInt const& n){
-    auto a1 = std::move(*this); // TODO: refactor this out
+UnsignedBigInt UnsignedBigInt::expmod(UnsignedBigInt const& z, UnsignedBigInt const& n) const {
+    auto a1 = *this;
     auto z1 = z;
-    auto x = BigInt({1}, true);
+    auto x = UnsignedBigInt(1);
 
 
-    auto two = BigInt({2}, true);
-    auto const zero = BigInt({0}, true);
+    auto two = UnsignedBigInt(2);
+    auto const zero = UnsignedBigInt(0);
 
     while (z1 != zero) {
         auto c_div = zero;
@@ -63,21 +93,20 @@ void BigInt::operator%(BigInt const& other) {
         z1 = z1 - 1;
         x = (x * a1) % n;
     }
-    *this = x;
-}*/
 
-void BigInt::operator=(BigInt const&& other) {
-    m_is_positive = other.m_is_positive;
+    return x;
+}
+
+void UnsignedBigInt::operator=(UnsignedBigInt const&& other) {
     m_data = std::move(other.m_data);
     ensure_minimum_data_size();
 }
-void BigInt::operator=(BigInt const& other) {
-    m_is_positive = other.m_is_positive;
+void UnsignedBigInt::operator=(UnsignedBigInt const& other) {
     m_data = other.m_data;
     ensure_minimum_data_size();
 }
 
-void BigInt::divmod(BigInt const& divisor, BigInt& out_div, BigInt& out_mod) const {
+void UnsignedBigInt::divmod(UnsignedBigInt const& divisor, UnsignedBigInt& out_div, UnsignedBigInt& out_mod) const {
     if (out_div.m_data.size() != 0 || out_mod.m_data.size() != 0) {
         std::cout << "precondition for divmod not met: out_div and out_mod must be 0" << std::endl;
         // TODO: implement 0 check and 0 number.
@@ -87,10 +116,10 @@ void BigInt::divmod(BigInt const& divisor, BigInt& out_div, BigInt& out_mod) con
     for (int i = m_data.size() - 1; i >= 0; i--) {
         for (int j = 7; j >= 0; j--) {
             auto shift_amount = i * 8 + j; // TODO: prevent "overshifting"
-            auto c_divisor = BigInt(divisor.m_data, true); // FIXME: implement shift right
-            c_divisor.shift_left(shift_amount);
+            auto c_divisor = UnsignedBigInt(divisor.m_data); // FIXME: implement shift right
+            c_divisor <<= shift_amount;
             if (c_divisor <= out_mod) {
-                out_mod.sub(c_divisor);
+                out_mod -= c_divisor;
                 out_div.set_bit(shift_amount, true);
             }
         }
@@ -99,7 +128,7 @@ void BigInt::divmod(BigInt const& divisor, BigInt& out_div, BigInt& out_mod) con
     out_mod.ensure_minimum_data_size();
 }
 
-void BigInt::set_bit(int position, bool value) {
+void UnsignedBigInt::set_bit(int position, bool value) {
     int whole_octet_shift = position / 8;
     int sub_octet_shift = position % 8;
 
@@ -117,7 +146,7 @@ void BigInt::set_bit(int position, bool value) {
     ensure_minimum_data_size();
 }
 
-void BigInt::shift_left(size_t amount) {
+void UnsignedBigInt::operator<<=(size_t amount) {
     int whole_octet_shift = amount / 8;
     int sub_octet_shift = amount % 8;
 
@@ -144,7 +173,7 @@ void BigInt::shift_left(size_t amount) {
     ensure_minimum_data_size();
 }
 
-void BigInt::ensure_minimum_data_size() {
+void UnsignedBigInt::ensure_minimum_data_size() {
     // cleanup most significant null bytes. this is an invariant
     for (int i = m_data.size() - 1; i >= 0; i--) {
         if (m_data[i] != 0) return;
@@ -152,13 +181,14 @@ void BigInt::ensure_minimum_data_size() {
     }
 }
 
-std::string BigInt::as_decimal() const {
+std::string UnsignedBigInt::as_decimal() const {
     std::string s = "";
-    auto div = BigInt({0}, m_is_positive);
-    auto mod = BigInt({0}, m_is_positive);
-    auto cache = BigInt(m_data, m_is_positive);
-    auto ten = BigInt({10}, true);
+    UnsignedBigInt div, mod;
+    auto cache = UnsignedBigInt(m_data);
+    auto ten = UnsignedBigInt(10);
     while (cache >= ten) {
+        div = UnsignedBigInt(0); 
+        mod = UnsignedBigInt(0);
         cache.divmod(ten, div, mod);
         if (cache <= div) {
             // div didn't get smaller. (why??)
@@ -171,8 +201,6 @@ std::string BigInt::as_decimal() const {
         } else {
             s = std::to_string(mod.m_data[0]) + s;
         }
-        div = BigInt({}, true); // FIXME: make m_data not directly writeable but instead do ensure_minimum_data_size afterwards
-        mod = BigInt({}, true); // TODO: set0 applicable 
     }
     if (cache.m_data.size() == 0) {
         s = "0" + s;
@@ -182,7 +210,7 @@ std::string BigInt::as_decimal() const {
     return s;
 }
 
-std::string BigInt::as_binary() const {
+std::string UnsignedBigInt::as_binary() const {
     std::string s = "";
     for (size_t i = 0; i < m_data.size(); i++) {
         uint8_t c = m_data[m_data.size() - 1 - i];
@@ -195,63 +223,57 @@ std::string BigInt::as_binary() const {
     return s;
 }
 
-void BigInt::add_assume_both_positive(BigInt const& other) {
+UnsignedBigInt UnsignedBigInt::operator+(UnsignedBigInt const& other) const {
     uint8_t carry = 0;
     size_t other_i = 0;
     size_t our_i = 0;
+
+    auto cache = std::vector<uint8_t>();
+
     for (; other_i < other.m_data.size() && our_i < m_data.size(); other_i++, our_i++) {
         uint16_t o = other.m_data[other_i];
         uint16_t t = m_data[our_i];
         uint16_t res = o + t + carry;
         carry = res >> 8;
-        m_data[our_i] = (uint8_t) (res & 0xff);
+        cache.push_back((uint8_t) (res & 0xff));
     }
 
     for (; other_i < other.m_data.size(); other_i++) {
         uint16_t o = other.m_data[other_i];
         uint16_t res = o + carry;
         carry = res >> 8;
-        m_data.push_back((uint8_t) (res & 0xff));
+        cache.push_back((uint8_t) (res & 0xff));
     } 
 
     for (; our_i < m_data.size(); our_i++) {
         uint16_t t = m_data[our_i];
         uint16_t res = t + carry;
         carry = res >> 8;
-        m_data[our_i] = (uint8_t) (res & 0xff);
+        cache.push_back((uint8_t) (res & 0xff));
     }
 
     if (carry > 0) {
-        m_data.push_back(1);
+        cache.push_back(1);
     }
-    ensure_minimum_data_size();
+
+    return UnsignedBigInt(std::move(cache));
 }
 
-
-void BigInt::add(BigInt const& other) {
-    if ((m_is_positive && other.m_is_positive) || (!m_is_positive && !other.m_is_positive)) {
-        add_assume_both_positive(other);
-    } else {
-        std::cout << "unimplemented yet" << std::endl;
+UnsignedBigInt UnsignedBigInt::operator-(UnsignedBigInt const& other) const {
+    if (other > (*this)) {
+        std::cout << "UnsignedBigInt: '-' called but other was larger." << std::endl;
         abort();
-        // TODO:
     }
-    // ensure maybe TODO
-}
-
-void BigInt::sub_ordered(BigInt const& other) {
-    auto compare_res = other <= (*this);
-    auto& a = compare_res ? *this : other;
-    auto& b = compare_res ? other : *this;
-    // a - b. b <= a
+    // calculate this - other. other <= this
     
-    std::vector<uint8_t> temp;
+    std::vector<uint8_t> cache;
     uint8_t carry = 0;
-    size_t a_i = 0;
-    size_t b_i = 0;
-    for (; b_i < b.m_data.size() && a_i < a.m_data.size(); b_i++, a_i++) {
-        uint16_t t = a.m_data[a_i];
-        uint16_t o = b.m_data[b_i];
+    size_t this_i = 0;
+    size_t other_i = 0;
+
+    for (; other_i < other.m_data.size() && this_i < m_data.size(); other_i++, this_i++) {
+        uint16_t t = m_data[this_i];
+        uint16_t o = other.m_data[other_i];
         int16_t res = t - o - carry;
         if (res < 0) {
             res += 0x100;
@@ -259,16 +281,16 @@ void BigInt::sub_ordered(BigInt const& other) {
         } else {
             carry = 0;
         }
-        temp.push_back((uint8_t) (res & 0xff));
+        cache.push_back((uint8_t) (res & 0xff)); // TODO: maybe strip the bitmask
     }
 
-    if (b_i < b.m_data.size()) {
-        std::cout << "ERROR: b.m_data was not consumed fully. b=" << b_i << " b.size()=" << b.m_data.size() << std::endl;
+    if (other_i < other.m_data.size()) {
+        std::cout << "ERROR: other.m_data was not consumed fully. other_i=" << other_i << " other.size()=" << other.m_data.size() << std::endl;
         abort();
     }
 
-    for (; a_i < a.m_data.size(); a_i++) {
-        uint16_t t = a.m_data[a_i];
+    for (; this_i < m_data.size(); this_i++) {
+        uint16_t t = m_data[this_i];
         int16_t res = t - carry;
         if (res < 0) {
             res += 0x100;
@@ -276,7 +298,7 @@ void BigInt::sub_ordered(BigInt const& other) {
         } else {
             carry = 0;
         }
-        temp.push_back((uint8_t) (res & 0xff));
+        cache.push_back((uint8_t) (res & 0xff)); // TODO: maybe strip the bitmask
     }
 
     if (carry > 0) {
@@ -284,28 +306,10 @@ void BigInt::sub_ordered(BigInt const& other) {
         abort();
     }
     
-    m_data = temp;
-    ensure_minimum_data_size();
+    return UnsignedBigInt(cache);
 }
 
-void BigInt::sub(BigInt const& other) {
-    bool other_inv = !other.m_is_positive;
-
-    if (m_is_positive && other_inv) {
-        add_assume_both_positive(other);
-    } else if(m_is_positive && !other_inv) {
-        // a - b
-        sub_ordered(other);
-    } else if(!m_is_positive && other_inv) {
-        // b - a
-        sub_ordered(other);
-    } else {
-        // -b -a = - (a + b)
-        add_assume_both_positive(other);
-    }
-}
-
-std::strong_ordering BigInt::operator<=>(BigInt const& other) const {
+std::strong_ordering UnsignedBigInt::operator<=>(UnsignedBigInt const& other) const {
     if (m_data.size() > other.m_data.size()) {
         return std::strong_ordering::greater;
     } else if (m_data.size() < other.m_data.size()) {
