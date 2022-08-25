@@ -224,6 +224,7 @@ std::string parse_oid(std::span<uint8_t> octets) {
         oid += "." + std::to_string(num);
         i_start = i_cur;
     }
+    // unreachable
 }
 
 
@@ -240,6 +241,9 @@ std::vector<ASNObj>* parse_impl(std::span<uint8_t> data) {
         if (id.id_encoding == Encoding::Primitive) {
             if (id.id_tag == Tag::OBJECT_IDENTIFIER) {
                 std::string oid = parse_oid(span);
+                if (oid_name.find(oid) != oid_name.end()) {
+                    oid = oid_name.at(oid) + " (" + oid + ")";
+                }
                 auto* v = new std::vector<uint8_t>(oid.begin(), oid.end());
                 content = v;
             } else {
