@@ -122,6 +122,11 @@ void handle_X509v3Cert(std::vector<ASNObj> cert) {
     std::cout << "publicKeyInfo: algorithm type (oid): " << subjectAlorithmIdentier[0].as_string() << std::endl; // algorithm type. oid
     // parse rest of algorithm parameters depending on type
     std::cout << "publicKey: " << subjectPublicKeyInfo[1].as_integer().as_decimal() << std::endl; // publicKey // TODO: as_bitString 
+    
+    std::cout << "extensions: " << sequence[7].to_string() << std::endl;
+ 
+    std::cout << "cert signatureAlgorithm (oid): " << cert_and_certSigAlg_and_certSig.as_ASNObjs()[1].as_ASNObjs()[0].as_string() << std::endl;
+    std::cout << "cert signature: " << cert_and_certSigAlg_and_certSig.as_ASNObjs()[2].as_integer().as_decimal() << std::endl;
 
     std::cout << "---- end ----" << std::endl;
 }
