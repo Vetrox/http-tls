@@ -149,6 +149,14 @@ public:
         return m_id.id_tag == Tag::UTCTime;
     }
 
+    bool is_integer() const {
+        return m_id.id_tag == Tag::INTEGER || m_id.id_tag == Tag::BIT_STRING || m_id.id_tag == Tag::OCTET_STRING;
+    }
+
+    bool is_null() const {
+        return m_id.id_tag == Tag::NIL;
+    }
+
     std::string as_utc() {
         if (!is_primitive()) throw 444;
         if (!is_utc()) throw 445;
@@ -185,6 +193,8 @@ public:
 
     BigInt as_integer() const { // NOTE: Big endian (network endianess)
         if (!is_primitive()) throw 444;
+        if (!is_integer()) throw 445;
+
         auto data = *(std::vector<uint8_t>*)m_content;
         return BigInt(std::vector<uint8_t>(data.rbegin(), data.rend()), true);
     }
@@ -209,6 +219,15 @@ public:
             if (is_string() || is_oid()) {
                 s += (is_oid() ? "oid" : "str");
                 s += ": " + as_string();
+            } else if (is_integer()){
+                s += (tagname[m_id.id_tag]);
+                s += ":";
+                s += as_integer().as_decimal();
+            } else if (is_utc()) {
+                s += "time: ";
+                s += as_utc();
+            } else if (is_null()) {
+                s += "NULL";
             } else {
                 s += "raw: ";
                 s += as_hex(as_octets());
