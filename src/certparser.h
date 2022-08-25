@@ -145,6 +145,36 @@ public:
         return m_id.id_tag == Tag::OBJECT_IDENTIFIER;
     }
 
+    bool is_utc() const {
+        return m_id.id_tag == Tag::UTCTime;
+    }
+
+    std::string as_utc() {
+        if (!is_primitive()) throw 444;
+        if (!is_utc()) throw 445;
+
+        // YYMMDD000000Z. len = 13
+        // FIXME: other sources say YYMMDDhhmm[ss]Z or YYMMDDhhmm[ss](+|-)hhmm
+        auto octets = as_octets();
+        if (octets.size() != 13) throw 446;
+        if (octets[12] != (uint8_t) 'Z') throw 447;
+        
+        std::string out = "";
+        out += octets[4];
+        out += octets[5];
+        out += ".";
+        out += octets[2];
+        out += octets[3];
+        out += ".";
+        
+        // RFC5280 section 4.1.2.5.1.
+        out += (octets[0] < '5') ? "20" : "19";
+        out += octets[0];
+        out += octets[1];
+
+        return out;
+    }
+
     std::string as_string() {
         if (!is_primitive()) throw 444;
         if (!is_string() && !is_oid()) throw 445;

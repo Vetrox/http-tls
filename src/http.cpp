@@ -109,8 +109,8 @@ void handle_X509v3Cert(std::vector<ASNObj> cert) {
         std::cout << "issuerInfo: value: " << in[1].as_string() << std::endl; // the name
     }
     auto validity = sequence[4].as_ASNObjs();
-//    std::cout << "validity: not before: " << validity[0].as_string() << std::endl; // notBefore. // TODO: as_UTCTime
-//    std::cout << "validity: not after: " << validity[1].as_string() << std::endl; // notAfter. // TODO: as_UTCTime
+    std::cout << "validity: not before: " << validity[0].as_utc() << std::endl; // notBefore. // TODO: as_UTCTime
+    std::cout << "validity: not after: " << validity[1].as_utc() << std::endl; // notAfter. // TODO: as_UTCTime
     auto subjectInfo = sequence[5].as_ASNObjs(); // FIXME: undocumented
     for (ASNObj info : subjectInfo) {
         auto in = info.as_ASNObjs()[0].as_ASNObjs();
