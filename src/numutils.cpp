@@ -66,7 +66,6 @@ UnsignedBigInt UnsignedBigInt::operator%(UnsignedBigInt const& other) const {
         z1 = z1 - 1;
         x = (x * a1) mod n;
     }
-    this = x;
 }*/
 
 /** Fast exponentiation:
@@ -83,11 +82,8 @@ UnsignedBigInt UnsignedBigInt::expmod(UnsignedBigInt const& z, UnsignedBigInt co
     auto const zero = UnsignedBigInt(0);
 
     while (z1 != zero) {
-        auto c_div = zero;
-        auto c_mod = zero;
-        z1.divmod(two, c_div, c_mod);
-        while (c_mod == zero) {
-            z1 = std::move(c_div);
+        while ((z1 % two) == zero) {
+            z1 = z1 / two;
             a1 = (a1 * a1) % n;
         }
         z1 = z1 - 1;
