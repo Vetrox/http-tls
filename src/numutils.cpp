@@ -2,18 +2,82 @@
 
 #include <iostream>
 
-void BigInt::operator=(BigInt&& other) {
+void BigInt::operator/(BigInt const& other) {
+    BigInt c_mod = BigInt({}, true);
+    BigInt c_div = BigInt({}, true);
+    
+    divmod(other, c_div, c_mod);
+
+    *this = std::move(c_div);
+}
+
+void BigInt::operator%(BigInt const& other) {
+    BigInt c_mod = BigInt({}, true);
+    BigInt c_div = BigInt({}, true);
+    
+    divmod(other, c_div, c_mod);
+
+    *this = std::move(c_mod);
+}
+/** Fast exponentiation:
+ *  calculates this = (this^z) % n
+ * 
+ */
+/*void BigInt::expmod(BigInt &z, BigInt &n){
+    auto a1 = this;
+    auto z1 = z;
+    auto x = 1;
+
+    while (z1 != 0) {
+        while ((z1 mod 2) == 0) {
+            z1 = z1 / 2;
+            a1 = (a1 * a1) mod n;
+        }
+        z1 = z1 - 1;
+        x = (x * a1) mod n;
+    }
+    this = x;
+}*/
+
+/** Fast exponentiation:
+ *  calculates this = (this^z) % n
+ * 
+ */
+/*void BigInt::expmod(BigInt const& z, BigInt const& n){
+    auto a1 = std::move(*this); // TODO: refactor this out
+    auto z1 = z;
+    auto x = BigInt({1}, true);
+
+
+    auto two = BigInt({2}, true);
+    auto const zero = BigInt({0}, true);
+
+    while (z1 != zero) {
+        auto c_div = zero;
+        auto c_mod = zero;
+        z1.divmod(two, c_div, c_mod);
+        while (c_mod == zero) {
+            z1 = std::move(c_div);
+            a1 = (a1 * a1) % n;
+        }
+        z1 = z1 - 1;
+        x = (x * a1) % n;
+    }
+    *this = x;
+}*/
+
+void BigInt::operator=(BigInt const&& other) {
     m_is_positive = other.m_is_positive;
-    m_data = other.m_data;
+    m_data = std::move(other.m_data);
     ensure_minimum_data_size();
 }
-void BigInt::operator=(BigInt& other) {
+void BigInt::operator=(BigInt const& other) {
     m_is_positive = other.m_is_positive;
     m_data = other.m_data;
     ensure_minimum_data_size();
 }
 
-void BigInt::divmod(BigInt& divisor, BigInt& out_div, BigInt& out_mod) const {
+void BigInt::divmod(BigInt const& divisor, BigInt& out_div, BigInt& out_mod) const {
     if (out_div.m_data.size() != 0 || out_mod.m_data.size() != 0) {
         std::cout << "precondition for divmod not met: out_div and out_mod must be 0" << std::endl;
         // TODO: implement 0 check and 0 number.
@@ -131,7 +195,7 @@ std::string BigInt::as_binary() const {
     return s;
 }
 
-void BigInt::add_assume_both_positive(BigInt& other) {
+void BigInt::add_assume_both_positive(BigInt const& other) {
     uint8_t carry = 0;
     size_t other_i = 0;
     size_t our_i = 0;
@@ -164,7 +228,7 @@ void BigInt::add_assume_both_positive(BigInt& other) {
 }
 
 
-void BigInt::add(BigInt& other) {
+void BigInt::add(BigInt const& other) {
     if ((m_is_positive && other.m_is_positive) || (!m_is_positive && !other.m_is_positive)) {
         add_assume_both_positive(other);
     } else {
@@ -175,7 +239,7 @@ void BigInt::add(BigInt& other) {
     // ensure maybe TODO
 }
 
-void BigInt::sub_ordered(BigInt& other) {
+void BigInt::sub_ordered(BigInt const& other) {
     auto compare_res = other <= (*this);
     auto& a = compare_res ? *this : other;
     auto& b = compare_res ? other : *this;
@@ -224,7 +288,7 @@ void BigInt::sub_ordered(BigInt& other) {
     ensure_minimum_data_size();
 }
 
-void BigInt::sub(BigInt& other) {
+void BigInt::sub(BigInt const& other) {
     bool other_inv = !other.m_is_positive;
 
     if (m_is_positive && other_inv) {
@@ -241,7 +305,7 @@ void BigInt::sub(BigInt& other) {
     }
 }
 
-std::strong_ordering BigInt::operator<=> (BigInt const& other) const {
+std::strong_ordering BigInt::operator<=>(BigInt const& other) const {
     if (m_data.size() > other.m_data.size()) {
         return std::strong_ordering::greater;
     } else if (m_data.size() < other.m_data.size()) {
