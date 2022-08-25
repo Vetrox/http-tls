@@ -191,12 +191,12 @@ public:
         return std::string(octets.begin(), octets.end());
     }
 
-    BigInt as_integer() const { // NOTE: Big endian (network endianess)
+    UnsignedBigInt as_integer() const { // NOTE: Big endian (network endianess)
         if (!is_primitive()) throw 444;
         if (!is_integer()) throw 445;
 
         auto data = *(std::vector<uint8_t>*)m_content;
-        return BigInt(std::vector<uint8_t>(data.rbegin(), data.rend()), true);
+        return UnsignedBigInt(std::vector<uint8_t>(data.rbegin(), data.rend())); // FIXME: allow signed numbers
     }
 
     std::vector<uint8_t> as_octets() {
