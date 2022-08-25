@@ -25,7 +25,7 @@ void BigInt::divmod(BigInt& divisor, BigInt& out_div, BigInt& out_mod) const {
             auto shift_amount = i * 8 + j; // TODO: prevent "overshifting"
             auto c_divisor = BigInt(divisor.m_data, true); // FIXME: implement shift right
             c_divisor.shift_left(shift_amount);
-            if (c_divisor.less_than_eq_abs(out_mod)) {
+            if (c_divisor <= out_mod) {
                 out_mod.sub(c_divisor);
                 out_div.set_bit(shift_amount, true);
             }
@@ -94,9 +94,9 @@ std::string BigInt::as_decimal() const {
     auto mod = BigInt({0}, m_is_positive);
     auto cache = BigInt(m_data, m_is_positive);
     auto ten = BigInt({10}, true);
-    while (!cache.less_than_eq_abs(ten)) {
+    while (cache >= ten) {
         cache.divmod(ten, div, mod);
-        if (cache.less_than_eq_abs(div)) {
+        if (cache <= div) {
             // div didn't get smaller. (why??)
             std::cout << "div not smaller" << std::endl;
             abort();
@@ -176,7 +176,7 @@ void BigInt::add(BigInt& other) {
 }
 
 void BigInt::sub_ordered(BigInt& other) {
-    auto compare_res = other.less_than_eq_abs(*this);
+    auto compare_res = other <= (*this);
     auto& a = compare_res ? *this : other;
     auto& b = compare_res ? other : *this;
     // a - b. b <= a
@@ -241,21 +241,21 @@ void BigInt::sub(BigInt& other) {
     }
 }
 
-bool BigInt::less_than_eq_abs(BigInt& other) const {
+std::strong_ordering BigInt::operator<=> (BigInt const& other) const {
     if (m_data.size() > other.m_data.size()) {
-        return false;
+        return std::strong_ordering::greater;
     } else if (m_data.size() < other.m_data.size()) {
-        return true;
+        return std::strong_ordering::less;
     }
 
-    for (int i = m_data.size() -1; i >= 0; i--) {
+    for (int i = m_data.size() - 1; i >= 0; i--) {
         auto our_data = m_data.at(i);
         auto other_data = other.m_data.at(i);
         if (our_data > other_data) {
-            return false;
+            return std::strong_ordering::greater;
         } else if(our_data < other_data) {
-            return true;
+            return std::strong_ordering::less;
         }
     }
-    return true;
+    return std::strong_ordering::equal;
 }

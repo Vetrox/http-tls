@@ -29,7 +29,7 @@ public:
     bool is_positive() const { return m_is_positive; }
     void set_is_positive(bool is_positive) { m_is_positive = is_positive; }
 
-    bool less_than_eq_abs(BigInt& other) const;
+    std::strong_ordering operator<=>(BigInt const& other) const;
 private:
     std::vector<uint8_t> m_data {}; // little endian (least significant byte first)
     bool m_is_positive {false};
