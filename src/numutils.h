@@ -14,6 +14,22 @@ public:
         ensure_minimum_data_size();
     }
 
+    UnsignedBigInt(std::string_view number) {
+        UnsignedBigInt temp;
+        for (int i = 0; i < number.size(); i++) {
+            int digit = number.at(i) - '0';
+            if (digit > 9 || digit < 0) {
+                std::cout << "malformed input" << std::endl;
+                abort();
+            }
+            
+            temp *= 10;
+            temp += UnsignedBigInt(digit);
+        }
+
+        *this = temp;    
+    }
+
     UnsignedBigInt(size_t number) 
     {
         for (int i = 0; i < sizeof(size_t); i++) {
