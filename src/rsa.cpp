@@ -51,7 +51,7 @@ std::vector<UnsignedBigInt> encrypt(std::vector<uint8_t> const& message, Unsigne
     return vec;
 } 
 
-std::string decrypt(std::vector<UnsignedBigInt> const& encrypted, UnsignedBigInt const& private_exponent, UnsignedBigInt const& modulus) {
+std::vector<uint8_t> decrypt(std::vector<UnsignedBigInt> const& encrypted, UnsignedBigInt const& private_exponent, UnsignedBigInt const& modulus) {
     auto block_amount = 0;
     for (int i = 1;; i++) {
         auto octets_levels = UnsignedBigInt(1);
@@ -65,7 +65,7 @@ std::string decrypt(std::vector<UnsignedBigInt> const& encrypted, UnsignedBigInt
         std::cout << "ERROR: Modulus is to small (less than 256)" << std::endl;
     }
 
-    std::string ret = "";
+    std::vector<uint8_t> ret;
     for (auto const& encrypted_value : encrypted) {
         auto decrytped_value = decrypt_block(encrypted_value, private_exponent, modulus);
         for (int i = 0; i < block_amount; i++) {
@@ -76,7 +76,7 @@ std::string decrypt(std::vector<UnsignedBigInt> const& encrypted, UnsignedBigInt
                     octet |= 1 << j;
                 }
             }
-            ret += octet;
+            ret.push_back(octet);
         }
     }
     return ret;
