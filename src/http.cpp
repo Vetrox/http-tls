@@ -22,6 +22,9 @@
 
 #include <deque>
 
+#include "rsa.h"
+#include "cert.h"
+
 //FIXME REMOVE THIS
 #include "tls.h"
 
@@ -76,59 +79,36 @@ void request(const char* ip, uint8_t* payload, size_t payload_length) {
     }
 }
 
-// TODO: move this adequately
-void handle_X509v3Cert(std::vector<ASNObj> cert) {  
-    // NOTE: According to https://datatracker.ietf.org/doc/html/rfc1422#appendix-A
-    std::cout << "---- interp cert ----" << std::endl;
 
-    if (cert.size() != 1) {
-        std::cout << "ERROR: Unexpected number of ASN Objects to be interpretet as one certficate. Amount: " 
-            << std::to_string(cert.size()) << std::endl;
-        abort();
-    }
+void verify_cert_chain(std::vector<X509v3> certs) {  
 
-    
-    // FIXME: somehow the documentation doesn't mention 2 extra members beside the certicate
-    ASNObj cert_and_certSigAlg_and_certSig = cert[0];
-    ASNObj c = cert_and_certSigAlg_and_certSig.as_ASNObjs()[0];
-    auto sequence = c.as_ASNObjs();
-    if (sequence.size() != 8) {
-        std::cout << "ERROR: Certificate Contents include not exactly 8 Members. This might be because of extra optional data." << std::endl;
-        abort();
-    }
-    std::cout << "version: " << sequence[0].as_ASNObjs()[0].as_integer().as_decimal() << std::endl; // version. must be 2 (to mean v3) // TODO: as_integer // NOTE: undocumented nesting
-    std::cout << "serialNumber: " << sequence[1].as_integer().as_decimal() << std::endl; // serialNumber. ??? // TODO: as_integer
+    for (int i = certs.size() - 1; i >= 0; i--) {
+        auto cert = certs.at(i);
+        std::cout << "CERT-serial_number: " << cert.serial_number.as_decimal() << std::endl;
+        std::cout << "CERT-public-key: \n  modulus: " << cert.public_key.modulus.as_decimal() << "\n  exponent: "
+            << cert.public_key.exponent.as_decimal() << std::endl;
 
-    auto signature = sequence[2].as_ASNObjs();
-    std::cout << "signature: algorithm type (oid): " << signature[0].as_string() << std::endl; // algorithm type. oid
-    // parse rest of signature depending on algorithm type
-    auto issuerInfo = sequence[3].as_ASNObjs(); // FIXME: undocumented
-    for (ASNObj info : issuerInfo) {
-        auto in = info.as_ASNObjs()[0].as_ASNObjs();
-        std::cout << "issuerInfo (oid): " << in[0].as_string() << std::endl; // oid of info
-        std::cout << "issuerInfo: value: " << in[1].as_string() << std::endl; // the name
-    }
-    auto validity = sequence[4].as_ASNObjs();
-    std::cout << "validity: not before: " << validity[0].as_utc() << std::endl; // notBefore. // TODO: as_UTCTime
-    std::cout << "validity: not after: " << validity[1].as_utc() << std::endl; // notAfter. // TODO: as_UTCTime
-    auto subjectInfo = sequence[5].as_ASNObjs(); // FIXME: undocumented
-    for (ASNObj info : subjectInfo) {
-        auto in = info.as_ASNObjs()[0].as_ASNObjs();
-        std::cout << "subjectInfo (oid): " << in[0].as_string() << std::endl; // oid of info
-        std::cout << "subjectInfo: value: " << in[1].as_string() << std::endl; // the name
-    }
-    auto subjectPublicKeyInfo = sequence[6].as_ASNObjs();
-    auto subjectAlorithmIdentier = subjectPublicKeyInfo[0].as_ASNObjs();
-    std::cout << "publicKeyInfo: algorithm type (oid): " << subjectAlorithmIdentier[0].as_string() << std::endl; // algorithm type. oid
-    // parse rest of algorithm parameters depending on type
-    std::cout << "publicKey: " << subjectPublicKeyInfo[1].as_integer().as_decimal() << std::endl; // publicKey // TODO: as_bitString 
-    
-    std::cout << "extensions: " << sequence[7].to_string() << std::endl;
- 
-    std::cout << "cert signatureAlgorithm (oid): " << cert_and_certSigAlg_and_certSig.as_ASNObjs()[1].as_ASNObjs()[0].as_string() << std::endl;
-    std::cout << "cert signature: " << cert_and_certSigAlg_and_certSig.as_ASNObjs()[2].as_integer().as_decimal() << std::endl;
+        std::cout << "CERT-signature: \n  " << cert.signature.data.as_decimal() << std::endl;
 
-    std::cout << "---- end ----" << std::endl;
+        PublicKey ca_pubkey;
+        if (i == certs.size() - 1) {
+        // RSA self sign check (only works on self signed). 
+            ca_pubkey = cert.public_key;
+        } else { // on others use the pubkey of the CA one above
+            ca_pubkey = certs.at(i + 1).public_key;
+        }
+        std::vector<UnsignedBigInt> temp {cert.signature.data};
+        auto decrypted_signature = decrypt(temp, ca_pubkey.exponent, ca_pubkey.modulus);
+
+
+        std::cout << "DECRYPTSIG: \n  ";
+        for (auto const& o : decrypted_signature) {
+            std::cout << std::hex << std::setfill('0')
+                << std::setw(2) << (int) o;
+        }
+        std::cout << std::dec << std::endl;
+    }
+        
 }
 
 void try_decode(std::deque<uint8_t> &data) {
@@ -209,7 +189,7 @@ void try_decode(std::deque<uint8_t> &data) {
             case msg_type<Certificates>(): {
                 std::cout << "it's certificates" << std::endl;
                 
-                Certificates certificates;
+                std::vector<X509v3> cert_chain;
                 // NOTE: certificates.length not populated
                 for (int i = 0; i < 3; i++) {
                     data.pop_front(); // NOTE: certificates.length not populated
@@ -221,22 +201,16 @@ void try_decode(std::deque<uint8_t> &data) {
                         data.pop_front();
                     }
                     
-                    Certificate cert;
+                    std::vector<uint8_t> cert_bytes;
                     for (int i = 0; i < cert_len; i++) {
-                        cert.bytes.push_back(data[0]);
+                        cert_bytes.push_back(data[0]);
                         data.pop_front();
                     }
-                    std::cout << std::dec << std::endl;
-                    // TODO: handle certificate parsed result
-                    handle_X509v3Cert(parse(cert.bytes));
-                    certificates.certs.push_back(cert);
+                    cert_chain.push_back(parse(cert_bytes));
                     offset += 3 + cert_len;
-                    std::cout << std::endl;
                 }
 
-                std::cout << "NumofCerts: " << +certificates.certs.size() << std::endl;
-                
-
+                verify_cert_chain(std::move(cert_chain));
                 break;
             }
             case msg_type<ServerHelloDone>(): {

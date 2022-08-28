@@ -260,7 +260,7 @@ std::vector<ASNObj>* parse_impl(std::span<uint8_t> data) {
     return objs;
 }
 
-std::vector<ASNObj> parse(std::span<uint8_t> data) {
+std::vector<ASNObj> parse_raw(std::span<uint8_t> data) {
     auto* parsed = parse_impl(data);
     
     if (!parsed) {
@@ -269,3 +269,133 @@ std::vector<ASNObj> parse(std::span<uint8_t> data) {
 
     return *parsed;
 }
+
+X509v3 parse(std::span<uint8_t> data) {
+    auto asnobjs = parse_raw(data);
+    if (asnobjs.size() != 1) {
+        std::cout << "ERROR: Unexpected number of ASN Objects to be interpretet as one certficate. Amount: " 
+            << std::to_string(asnobjs.size()) << std::endl;
+        abort();
+    }
+
+    ASNObj cert_and_certSigAlg_and_certSig = asnobjs[0];
+    auto sequence = cert_and_certSigAlg_and_certSig.as_ASNObjs()[0].as_ASNObjs();
+    if (sequence.size() != 8) {
+        std::cout << "ERROR: Certificate Contents include not exactly 8 Members." << std::endl;
+        abort();
+    }
+    
+    X509v3 v3;
+    
+    v3.version = sequence[0].as_ASNObjs()[0].as_integer();
+    if (v3.version != UnsignedBigInt(2)) {
+       std::cout << "ERROR: Version mismatch. expected version number 2 (v3), got version number " << v3.version.as_decimal() << std::endl;
+        abort();
+    }
+
+    v3.serial_number = sequence[1].as_integer();
+   
+    v3.signature_algorithm = sequence[2].as_ASNObjs()[0].as_string();
+
+    if (v3.signature_algorithm != "sha256WithRSAEncryption (1.2.840.113549.1.1.11)") {
+        std::cout << "ERROR: Signature algorithm type mismatch got: " << v3.signature_algorithm << std::endl;
+        abort();
+    }
+    // FIXME: parse rest of signature algorithm info depending on algorithm type
+    
+    IssuerInfo issuer_info;
+    auto issuerInfo = sequence[3].as_ASNObjs();
+    auto in = issuerInfo[0].as_ASNObjs()[0].as_ASNObjs();
+    if (in[0].as_string() != "countryName (2.5.4.6)") {
+        std::cout << "ERROR: countryName" << std::endl;
+        abort();
+    }
+    issuer_info.country_name = in[1].as_string();
+    
+    in = issuerInfo[1].as_ASNObjs()[0].as_ASNObjs();
+    if (in[0].as_string() != "organizationName (2.5.4.10)") {
+        std::cout << "ERROR: organizationName" << std::endl;
+        abort();
+    }
+    issuer_info.organization_name = in[1].as_string();
+    
+    in = issuerInfo[2].as_ASNObjs()[0].as_ASNObjs();
+    if (in[0].as_string() != "organizationalUnitName (2.5.4.11)") {
+        std::cout << "ERROR: organizationalUnitName" << std::endl;
+        abort();
+    }
+    issuer_info.organizational_unit_name = in[1].as_string();
+    
+    in = issuerInfo[3].as_ASNObjs()[0].as_ASNObjs();
+    if (in[0].as_string() != "commonName (2.5.4.3)") {
+        std::cout << "ERROR: commonName" << std::endl;
+        abort();
+    }
+    issuer_info.common_name = in[1].as_string();
+
+    v3.issuer_info = std::move(issuer_info);
+
+
+    auto validity = sequence[4].as_ASNObjs();
+    v3.valid_not_before = validity[0].as_utc();
+    v3.valid_not_after =  validity[1].as_utc();
+
+    SubjectInfo subject_info;
+    for (auto const& info : sequence[5].as_ASNObjs()) {
+        auto const& pair = info.as_ASNObjs()[0].as_ASNObjs();
+        auto const& oid = pair[0].as_string();
+        auto const& value = pair[1].as_string();
+        if (oid == "countryName (2.5.4.6)") {
+            subject_info.country_name = value;
+        } else if(oid == "stateOrProvinceName (2.5.4.8)") {
+            subject_info.state_name = value;
+        } else if(oid == "localityName (2.5.4.7)") {
+            subject_info.locality_name = value;
+        } else if(oid == "organizationName (2.5.4.10)") {
+            subject_info.organization_name = value;
+        } else if(oid == "organizationalUnitName (2.5.4.11)") {
+            subject_info.organizational_unit_name = value;
+        } else if(oid == "commonName (2.5.4.3)") {
+            subject_info.common_name = value;
+        } else {
+            std::cout << "unrecognized Identifier: " << oid << std::endl;
+            abort(); // maybe ignore
+        }
+    }
+    v3.subject_info = std::move(subject_info);
+
+    PublicKey pubkey_info;
+    auto subjectPublicKeyInfo = sequence[6].as_ASNObjs();
+    auto subjectAlorithmIdentier = subjectPublicKeyInfo[0].as_ASNObjs()[0].as_string();
+    if (subjectAlorithmIdentier != "rsaEncryption (1.2.840.113549.1.1.1)") {
+        std::cout << "ERROR: publicKeyInfo: algorithm type mismatch" << std::endl;
+        abort();
+    }
+    pubkey_info.algorithm_type = subjectAlorithmIdentier;
+        // FIXME: parse rest of algorithm parameters depending on type
+    auto pubKeyOctets = subjectPublicKeyInfo[1].as_octets(); // FIXME: this is the publicKEY. IT HAS AN OWN RSAPUBKEY ASN1 STRUCTURE.
+    if (pubKeyOctets.at(0) != 0) {
+        std::cout << "ERROR: empirically discovered padding 00 octet is not in public key." << std::endl;
+        abort();
+    }
+    auto parsedPubKey = parse_raw(std::span<uint8_t>(pubKeyOctets.begin()+1, pubKeyOctets.end())).at(0).as_ASNObjs();
+    pubkey_info.modulus = parsedPubKey.at(0).as_integer();
+    pubkey_info.exponent = parsedPubKey.at(1).as_integer();
+
+    // FIXME: handle extensions. sequence[7].to_string()
+    v3.public_key = std::move(pubkey_info);
+
+    Signature sig_info;
+    auto sigAlg = cert_and_certSigAlg_and_certSig.as_ASNObjs()[1].as_ASNObjs()[0].as_string();
+    if (sigAlg != "sha256WithRSAEncryption (1.2.840.113549.1.1.11)") {
+        std::cout << "ERROR: signature algorithm mismatch" << std::endl;
+        abort();
+    }
+    sig_info.algorithm_type = sigAlg;
+    sig_info.data = cert_and_certSigAlg_and_certSig.as_ASNObjs()[2].as_integer();
+
+    v3.signature = std::move(sig_info);
+
+    return std::move(v3);
+}
+    // TODO: verify the sha256 hash of the cerifificate with the (publicModulus, publicExponent) of the CA one above this certificate

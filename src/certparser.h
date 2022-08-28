@@ -7,10 +7,12 @@
 #include <vector>
 
 #include "numutils.h"
+#include "cert.h"
 
 class ASNObj;
 
-std::vector<ASNObj> parse(std::span<uint8_t>);
+std::vector<ASNObj> parse_raw(std::span<uint8_t>);
+X509v3 parse(std::span<uint8_t>);
 std::string as_hex(std::vector<uint8_t>);
 
 static std::unordered_map<std::string, std::string> oid_name = {
@@ -150,7 +152,7 @@ public:
     }
 
     bool is_integer() const {
-        return m_id.id_tag == Tag::INTEGER || m_id.id_tag == Tag::BIT_STRING || m_id.id_tag == Tag::OCTET_STRING;
+        return m_id.id_tag == Tag::INTEGER;
     }
 
     bool is_null() const {
@@ -183,7 +185,7 @@ public:
         return out;
     }
 
-    std::string as_string() {
+    std::string as_string() const {
         if (!is_primitive()) throw 444;
         if (!is_string() && !is_oid()) throw 445;
 
@@ -193,19 +195,19 @@ public:
 
     UnsignedBigInt as_integer() const { // NOTE: Big endian (network endianess)
         if (!is_primitive()) throw 444;
-        if (!is_integer()) throw 445;
+        // if (!is_integer()) throw 445;
 
         auto data = *(std::vector<uint8_t>*)m_content;
         return UnsignedBigInt(std::vector<uint8_t>(data.rbegin(), data.rend())); // FIXME: allow signed numbers
     }
 
-    std::vector<uint8_t> as_octets() {
+    std::vector<uint8_t> as_octets() const {
         if (!is_primitive()) throw 444;
 
         return *(std::vector<uint8_t>*) m_content;
     }
 
-    std::vector<ASNObj> as_ASNObjs() {
+    std::vector<ASNObj> as_ASNObjs() const {
         if (is_primitive()) throw 444;
         
         return *(std::vector<ASNObj>*) m_content;
