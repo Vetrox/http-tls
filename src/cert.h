@@ -40,4 +40,5 @@ struct X509v3 {
     PublicKey public_key;
     // TODO: consider adding extensions
     Signature signature;
+    std::vector<uint8_t> raw_bytes;
 };

@@ -19,6 +19,7 @@
 #include <iomanip>
 
 #include "numutils.h"
+#include "SHA256.h"
 
 #include <deque>
 
@@ -79,16 +80,13 @@ void request(const char* ip, uint8_t* payload, size_t payload_length) {
     }
 }
 
-
-void verify_cert_chain(std::vector<X509v3> certs) {  
-
+bool verify_cert_chain(std::vector<X509v3> certs) {  
     for (int i = certs.size() - 1; i >= 0; i--) {
         auto cert = certs.at(i);
         std::cout << "CERT-serial_number: " << cert.serial_number.as_decimal() << std::endl;
-        std::cout << "CERT-public-key: \n  modulus: " << cert.public_key.modulus.as_decimal() << "\n  exponent: "
-            << cert.public_key.exponent.as_decimal() << std::endl;
-
-        std::cout << "CERT-signature: \n  " << cert.signature.data.as_decimal() << std::endl;
+        // std::cout << "CERT-public-key: \n  modulus: " << cert.public_key.modulus.as_decimal() << "\n  exponent: "
+        //    << cert.public_key.exponent.as_decimal() << std::endl;
+        // std::cout << "CERT-signature: \n  " << cert.signature.data.as_decimal() << std::endl;
 
         PublicKey ca_pubkey;
         if (i == certs.size() - 1) {
@@ -99,16 +97,27 @@ void verify_cert_chain(std::vector<X509v3> certs) {
         }
         std::vector<UnsignedBigInt> temp {cert.signature.data};
         auto decrypted_signature = decrypt(temp, ca_pubkey.exponent, ca_pubkey.modulus);
+        // TODO: this is reversed somehow
+        auto chopped_sig_hash = chop_decrypted_signature(
+                std::vector<uint8_t>(decrypted_signature.rbegin(),
+                    decrypted_signature.rend()));
+        auto const& hash = sha256_hash(cert.raw_bytes);
 
+        std::vector<uint8_t> hash_as_octets;
+        for (int i = 0; i < hash.size(); i++)
+            for (int j = 3; j >= 0; j--)
+                hash_as_octets.push_back((hash.at(i) >> (j * 8)) & 0xff);
 
-        std::cout << "DECRYPTSIG: \n  ";
-        for (auto const& o : decrypted_signature) {
-            std::cout << std::hex << std::setfill('0')
-                << std::setw(2) << (int) o;
-        }
-        std::cout << std::dec << std::endl;
+        for (int i = 0; i < chopped_sig_hash.size(); i++)
+            if (chopped_sig_hash.at(i) != hash_as_octets.at(i)) {
+                std::cout << "HASH MISMATCH: decrypted: " << std::hex << std::setfill('0') 
+                    << std::setw(2) << (int) chopped_sig_hash.at(i)
+                    << " hashed cert: " << std::setw(2) << (int) hash_as_octets.at(i)
+                    << std::dec << std::endl;
+                return false;
+            }
     }
-        
+    return true;
 }
 
 void try_decode(std::deque<uint8_t> &data) {
@@ -210,7 +219,8 @@ void try_decode(std::deque<uint8_t> &data) {
                     offset += 3 + cert_len;
                 }
 
-                verify_cert_chain(std::move(cert_chain));
+                std::cout << "RESULT of certificate chain validation: " << std::to_string(
+                        verify_cert_chain(std::move(cert_chain))) << std::endl;
                 break;
             }
             case msg_type<ServerHelloDone>(): {

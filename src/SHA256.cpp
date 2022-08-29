@@ -3,6 +3,26 @@
 #include <iostream>
 #include <array>
 
+#include <iomanip>
+
+std::array<uint32_t, 8> sha256_hash(std::vector<uint8_t> const& data) {
+    std::vector<bool> temp;
+    for (auto const& octet : data) {
+        for (int i = 7; i >= 0; i--) {
+            temp.push_back(octet & (1 << i));
+        }
+    }
+    return sha256_hash(std::move(temp));
+}
+
+
+std::string sha256_as_hex(std::array<uint32_t, 8> hash) {
+    std::stringstream ret; 
+    for (auto const& h : hash)
+        ret << std::hex << std::setfill('0') << std::setw(2) << h;
+    return ret.str();
+}
+
 uint32_t rotr(uint32_t x, uint32_t n) { // FROM: https://blog.regehr.org/archives/1063
   return (x>>n) | (x<< (32-n));
 }

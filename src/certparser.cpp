@@ -1,7 +1,37 @@
-#include "certparser.h"
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <algorithm>
+
+#include "certparser.h"
+#include "SHA256.h"
+
+static constexpr std::array<uint8_t, 19> sha256_digest_info {
+    0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 
+    0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20 
+};
+
+std::vector<uint8_t> chop_decrypted_signature(std::vector<uint8_t> data) {
+    // RFC 8017 DigestInfo - AlgorithmIdentifier
+    // NOTE first 00 byte is missing.
+    auto it = std::find(data.begin() + 1, data.end(), 0x00);
+    if (it == data.end()) {
+        std::cout << "couldn't find 00 byte after ff bytes" << std::endl;
+        abort();
+    }
+    auto start = it - data.begin() + 1;
+    
+    for (int i = 0; i < sha256_digest_info.size(); i++) {
+        if (data.at(i + start) != sha256_digest_info[i]) {
+            std::cout << " MISMATCH: " << (int) data.at(i + start) << " != " << (int) sha256_digest_info[i] << " (expected)" << std::endl;
+            abort();    
+        }
+    }
+    start += sha256_digest_info.size();
+    auto ret = std::vector<uint8_t>(data.begin() + start, data.end());
+
+    return ret;
+}
 
 
 IDClass id_class(uint8_t octet) {
@@ -191,6 +221,7 @@ void print_indent(size_t num) {
     }
 }
 
+
 std::string parse_oid(std::span<uint8_t> octets) {
     // take first byte
     
@@ -231,6 +262,7 @@ std::string parse_oid(std::span<uint8_t> octets) {
 std::vector<ASNObj>* parse_impl(std::span<uint8_t> data) {
     auto* objs = new std::vector<ASNObj>();
     for (int i = 0; i < data.size();) {
+        auto obj_start_i = i;
         IDToken id = parse_id_octet(data[i]);
         i++;
         
@@ -254,7 +286,7 @@ std::vector<ASNObj>* parse_impl(std::span<uint8_t> data) {
         }
         i += length;
 
-        objs->emplace_back(ASNObj(id, length, content));
+        objs->emplace_back(ASNObj(std::vector<uint8_t>(data.begin() + obj_start_i, span.end()), id, length, content));
     }
 
     return objs;
@@ -395,6 +427,7 @@ X509v3 parse(std::span<uint8_t> data) {
     sig_info.data = cert_and_certSigAlg_and_certSig.as_ASNObjs()[2].as_integer();
 
     v3.signature = std::move(sig_info);
+    v3.raw_bytes = cert_and_certSigAlg_and_certSig.as_ASNObjs().at(0).raw_bytes();
 
     return std::move(v3);
 }

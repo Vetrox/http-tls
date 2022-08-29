@@ -10,7 +10,7 @@
 #include "cert.h"
 
 class ASNObj;
-
+std::vector<uint8_t> chop_decrypted_signature(std::vector<uint8_t>);
 std::vector<ASNObj> parse_raw(std::span<uint8_t>);
 X509v3 parse(std::span<uint8_t>);
 std::string as_hex(std::vector<uint8_t>);
@@ -128,7 +128,8 @@ struct IDToken {
 
 class ASNObj {
 public:
-    ASNObj(IDToken id, uint64_t length, void* content) : 
+    ASNObj(std::vector<uint8_t> asn_raw_bytes, IDToken id, uint64_t length, void* content) : 
+        m_asn_raw_bytes(std::move(asn_raw_bytes)),
         m_id(std::move(id)),
         m_length(length),
         m_content(content)
@@ -213,6 +214,10 @@ public:
         return *(std::vector<ASNObj>*) m_content;
     }
 
+    std::vector<uint8_t> raw_bytes() const {
+        return m_asn_raw_bytes;
+    }
+
     std::string to_string() {
         std::string s = "";
         // s += is_primitive() ? "pri" : "con";
@@ -255,4 +260,5 @@ private:
     IDToken m_id;
     uint64_t m_length;
     void* m_content;
+    std::vector<uint8_t> m_asn_raw_bytes;
 };
