@@ -1,10 +1,10 @@
 .PHONY: all
 
-CF=-std=c++2a -O3 -g
+CF=-std=c++2a -O3 -g -fsanitize=address,undefined,leak -D_GLIBCXX_DEBUG -Wall -Wextra -pedantic -Wshadow -Wsign-conversion -Wconversion -Wunreachable-code -Wdisabled-optimization# -Werror
 SRCcpp=$(wildcard src/*.cpp)
 SRCh=$(wildcard src/*.h)
-OBJS=$(subst .cpp,.o,$(SRCcpp))
-PCH=$(subst .h,.h.gch,$(SRCh)) # precompiled headers .gch
+OBJS=$(SRCcpp:.cpp=.o)
+PCH=$(SRCh:.h=.h.gch) # precompiled headers .gch
 
 all: dirs build/a.out
 	build/a.out
