@@ -3,16 +3,17 @@
 
 #include <iostream>
 
+#include "hexutils.h"
 
 int main() {
     auto handshake = client_hello();
 
     uint8_t* b = (uint8_t*) (&handshake);
 
-    std::cout << "Length: " << sizeof(handshake) << std::endl;
-
+    std::cout << "Hanshake Sending Payload Length: " << sizeof(handshake) << std::endl;
+    std::cout << "Hanshake Content: ";
     for (int i = 0; i < sizeof(handshake); i++) {
-        std::cout << std::to_string(b[i]) << " ";
+        std::cout << std::to_hex(b[i]) << ' ';
     }
     std::cout << std::endl;
 
