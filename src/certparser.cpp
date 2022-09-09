@@ -11,7 +11,7 @@ static constexpr std::array<uint8_t, 19> sha256_digest_info {
     0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20 
 };
 
-std::vector<uint8_t> chop_decrypted_signature(std::vector<uint8_t> data) {
+std::span<uint8_t> chop_decrypted_signature(std::span<uint8_t> data) {
     // RFC 8017 DigestInfo - AlgorithmIdentifier
     // NOTE first 00 byte is missing.
     auto it = std::find(data.begin() + 1, data.end(), 0x00);
@@ -19,18 +19,16 @@ std::vector<uint8_t> chop_decrypted_signature(std::vector<uint8_t> data) {
         std::cout << "couldn't find 00 byte after ff bytes" << std::endl;
         abort();
     }
-    auto start = it - data.begin() + 1;
-    
-    for (int i = 0; i < sha256_digest_info.size(); i++) {
-        if (data.at(i + start) != sha256_digest_info[i]) {
-            std::cout << " MISMATCH: " << (int) data.at(i + start) << " != " << (int) sha256_digest_info[i] << " (expected)" << std::endl;
+    size_t start = static_cast<size_t>(it - data.begin()) + 1;
+ 
+    for (size_t i = 0; i < sha256_digest_info.size(); i++) {
+        if (data[i + start] != sha256_digest_info[i]) {
+            std::cout << " MISMATCH: " << (size_t) data[i + start] << " != " << (size_t) sha256_digest_info[i] << " (expected)" << std::endl;
             abort();    
         }
     }
     start += sha256_digest_info.size();
-    auto ret = std::vector<uint8_t>(data.begin() + start, data.end());
-
-    return ret;
+    return data.subspan(start);
 }
 
 
@@ -98,7 +96,7 @@ uint8_t short_length(uint8_t octet) {
     return octet;
 }
 
-uint64_t long_length(std::span<uint8_t> octets, int* index) {
+uint64_t long_length(std::span<uint8_t> octets, size_t* index) {
     if ((octets[0] & 0b1000'0000) == 0) {
         std::cout << "ERROR: Malformed Long-Length octet" << std::endl;
         abort();
@@ -114,15 +112,15 @@ uint64_t long_length(std::span<uint8_t> octets, int* index) {
         abort();
     }
     *index += subsequent_length_octets;
-    uint64_t length = 0;
-    for (int i = 0; i < subsequent_length_octets; i++) {
-        length |= octets[i + 1] << ((subsequent_length_octets - i - 1) * 8);
+    size_t length = 0;
+    for (size_t i = 0; i < subsequent_length_octets; i++) {
+        length |= static_cast<size_t>(octets[i + 1]) << ((subsequent_length_octets - i - 1) * 8);
     }
 
     return length;
 }
 
-uint64_t parse_length(std::span<uint8_t> octets, int* index) {
+uint64_t parse_length(std::span<uint8_t> octets, size_t* index) {
     if (length_type(octets[0]) == LengthType::Short) {
         *index += 1;
         return short_length(octets[0]);
@@ -197,7 +195,7 @@ std::string as_hex(std::vector<uint8_t> octets) {
 }
 
 void print_octet(uint8_t octet, size_t indent = 0) {
-    for (int i = 0; i < indent; i++) {
+    for (size_t i = 0; i < indent; i++) {
         std::cout << " ";
     }
     std::cout << "CLASS: " << classname(octet) << " (" << id_class(octet) << "), "
@@ -216,7 +214,7 @@ IDToken parse_id_octet(uint8_t octet) {
 
 
 void print_indent(size_t num) {
-    for (int i; i < num; i++) {
+    for (size_t i = 0; i < num; i++) {
         std::cout << " ";
     }
 }
@@ -228,8 +226,8 @@ std::string parse_oid(std::span<uint8_t> octets) {
     std::string oid = "";
     oid += std::to_string(octets[0] / 40) + "." + std::to_string(octets[0] % 40);
 
-    int i_start = 1;
-    int i_cur = 1;
+    size_t i_start = 1;
+    size_t i_cur = 1;
     while (true) {
         while (true) {
             if (i_cur >= octets.size()) {
@@ -242,15 +240,15 @@ std::string parse_oid(std::span<uint8_t> octets) {
             return oid;
         }
 
-        if ((i_cur - i_start) > 8) {
-            std::cout << "ERROR: Oid with more than 64 bit number" << std::endl;
+        if ((i_cur - i_start) > sizeof(size_t)) {
+            std::cout << "ERROR: Oid with more requested bytes than the system can handle" << std::endl;
             abort();
         }
 
-        uint64_t num = 0;
-        for (int i = 0; i < (i_cur - i_start); i++) {
+        size_t num = 0;
+        for (size_t i = 0; i < (i_cur - i_start); i++) {
             num <<= 7;
-            num |= ((uint64_t) (octets[i_start+i] & 0b0111'1111));
+            num |= static_cast<size_t>(octets[i_start+i]) & 0b0111'1111;
         }
         oid += "." + std::to_string(num);
         i_start = i_cur;
@@ -261,13 +259,15 @@ std::string parse_oid(std::span<uint8_t> octets) {
 
 std::vector<ASNObj>* parse_impl(std::span<uint8_t> data) {
     auto* objs = new std::vector<ASNObj>();
-    for (int i = 0; i < data.size();) {
-        auto obj_start_i = i;
+    for (size_t i = 0; i < data.size();) {
+        size_t obj_start_i = i;
         IDToken id = parse_id_octet(data[i]);
         i++;
         
-        uint64_t length = parse_length(std::span(data.begin() + i, data.end()), &i);
-        std::span<uint8_t> span = std::span<uint8_t>(data.begin() + i, data.begin() + i + length);
+        uint64_t length = parse_length(data.subspan(i), &i);
+        size_t obj_total_len = i - obj_start_i + length;
+        auto total_span = data.subspan(obj_start_i, obj_total_len);
+        std::span<uint8_t> span = data.subspan(i, length);
       
         void* content;
         if (id.id_encoding == Encoding::Primitive) {
@@ -285,8 +285,7 @@ std::vector<ASNObj>* parse_impl(std::span<uint8_t> data) {
             content = parse_impl(span);
         }
         i += length;
-
-        objs->emplace_back(ASNObj(std::vector<uint8_t>(data.begin() + obj_start_i, span.end()), id, length, content));
+        objs->emplace_back(ASNObj(std::vector<uint8_t>(total_span.begin(), total_span.end()), id, length, content));
     }
 
     return objs;
@@ -429,6 +428,6 @@ X509v3 parse(std::span<uint8_t> data) {
     v3.signature = std::move(sig_info);
     v3.raw_bytes = cert_and_certSigAlg_and_certSig.as_ASNObjs().at(0).raw_bytes();
 
-    return std::move(v3);
+    return v3;
 }
     // TODO: verify the sha256 hash of the cerifificate with the (publicModulus, publicExponent) of the CA one above this certificate

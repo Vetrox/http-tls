@@ -81,7 +81,7 @@ void request(const char* ip, uint8_t* payload, size_t payload_length) {
 }
 
 bool verify_cert_chain(std::vector<X509v3> certs) {  
-    for (int i = certs.size() - 1; i >= 0; i--) {
+    for (int64_t i = certs.size() - 1; i >= 0; i--) {
         auto cert = certs.at(i);
         std::cout << "CERT-serial_number: " << cert.serial_number.as_decimal() << std::endl;
         // std::cout << "CERT-public-key: \n  modulus: " << cert.public_key.modulus.as_decimal() << "\n  exponent: "
@@ -98,21 +98,21 @@ bool verify_cert_chain(std::vector<X509v3> certs) {
         std::vector<UnsignedBigInt> temp {cert.signature.data};
         auto decrypted_signature = decrypt(temp, ca_pubkey.exponent, ca_pubkey.modulus);
         // TODO: this is reversed somehow
-        auto chopped_sig_hash = chop_decrypted_signature(
-                std::vector<uint8_t>(decrypted_signature.rbegin(),
-                    decrypted_signature.rend()));
+        auto reversed_dec_sig = std::vector<uint8_t>(decrypted_signature.rbegin(),
+                    decrypted_signature.rend());
+        auto chopped_sig_hash = chop_decrypted_signature(reversed_dec_sig);
         auto const& hash = sha256_hash(cert.raw_bytes);
 
         std::vector<uint8_t> hash_as_octets;
-        for (int i = 0; i < hash.size(); i++)
+        for (size_t k = 0; k < hash.size(); k++)
             for (int j = 3; j >= 0; j--)
-                hash_as_octets.push_back((hash.at(i) >> (j * 8)) & 0xff);
+                hash_as_octets.push_back((hash.at(k) >> (j * 8)) & 0xff);
 
-        for (int i = 0; i < chopped_sig_hash.size(); i++)
-            if (chopped_sig_hash.at(i) != hash_as_octets.at(i)) {
+        for (size_t p = 0; p < chopped_sig_hash.size(); p++)
+            if (chopped_sig_hash[p] != hash_as_octets[p]) {
                 std::cout << "HASH MISMATCH: decrypted: " << std::hex << std::setfill('0') 
-                    << std::setw(2) << (int) chopped_sig_hash.at(i)
-                    << " hashed cert: " << std::setw(2) << (int) hash_as_octets.at(i)
+                    << std::setw(2) << (int) chopped_sig_hash[p]
+                    << " hashed cert: " << std::setw(2) << (int) hash_as_octets[p]
                     << std::dec << std::endl;
                 return false;
             }
@@ -130,8 +130,7 @@ void try_decode(std::deque<uint8_t> &data) {
             abort();
         }
         
-
-        uint16_t length = ntohs(*(uint16_t*) &data[3]);
+        auto length = (static_cast<uint16_t>(data[3]) << 8) | data[4]; // ntohs(*reinterpret_cast<uint16_t*>(&data[3]));
         if (data.size() < length + 5) {
             return; // wait for tcp to finish
         }
@@ -150,10 +149,10 @@ void try_decode(std::deque<uint8_t> &data) {
         auto handshake_type = data[0];
         
         // FIXME: this depends on the host byte order (mine is len)
-        auto handshake_payload_l = data[1] << 16 
+        int handshake_payload_l = btolEN24_u32((&data[1])); /* data[1] << 16 
             | data[2] << 8
             | data[3];
-
+*/
         if (length - handshake_preamble_l != handshake_payload_l) {
             std::cout << "Handshake payload_length discrepency"
                 " to record_payload length" << std::endl;
@@ -170,15 +169,15 @@ void try_decode(std::deque<uint8_t> &data) {
                 
                 ServerHello decoded;
                 bzero(&decoded, sizeof(decoded));
-                for (int i = 0; i < 2 + sizeof(Random) + 1; i++) {
+                for (size_t i = 0; i < 2 + sizeof(Random) + 1; i++) {
                     ((uint8_t*) &decoded)[i] = data[0];
                     data.pop_front();
                 }
-                for (int i = 0; i < decoded.session_id_length; i++) {
+                for (size_t i = 0; i < decoded.session_id_length; i++) {
                     decoded.session_id[i] = data[0];
                     data.pop_front();
                 }
-                for (int i = 0; i < 3; i++) {
+                for (size_t i = 0; i < 3; i++) {
                     ((uint8_t*) &decoded.cipher_suite)[i] = data[0];
                     data.pop_front();
                 }
@@ -204,14 +203,14 @@ void try_decode(std::deque<uint8_t> &data) {
                     data.pop_front(); // NOTE: certificates.length not populated
                 }
 
-                for (int offset = 0; offset < handshake_payload_l - 3;) {
-                    int cert_len = btolEN24_u32((&data[0])); 
-                    for (int i = 0; i < 3; i++) {
+                for (size_t offset = 0; offset < handshake_payload_l - 3;) {
+                    uint32_t cert_len = btolEN24_u32(data.begin()); 
+                    for (size_t i = 0; i < 3; i++) {
                         data.pop_front();
                     }
                     
                     std::vector<uint8_t> cert_bytes;
-                    for (int i = 0; i < cert_len; i++) {
+                    for (size_t i = 0; i < cert_len; i++) {
                         cert_bytes.push_back(data[0]);
                         data.pop_front();
                     }

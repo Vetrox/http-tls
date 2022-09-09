@@ -10,7 +10,7 @@
 #include "cert.h"
 
 class ASNObj;
-std::vector<uint8_t> chop_decrypted_signature(std::vector<uint8_t>);
+std::span<uint8_t> chop_decrypted_signature(std::span<uint8_t>);
 std::vector<ASNObj> parse_raw(std::span<uint8_t>);
 X509v3 parse(std::span<uint8_t>);
 std::string as_hex(std::vector<uint8_t>);
@@ -129,10 +129,10 @@ struct IDToken {
 class ASNObj {
 public:
     ASNObj(std::vector<uint8_t> asn_raw_bytes, IDToken id, uint64_t length, void* content) : 
-        m_asn_raw_bytes(std::move(asn_raw_bytes)),
         m_id(std::move(id)),
         m_length(length),
-        m_content(content)
+        m_content(content),
+        m_asn_raw_bytes(std::move(asn_raw_bytes))
     {
     }
 
@@ -171,17 +171,17 @@ public:
         if (octets[12] != (uint8_t) 'Z') throw 447;
         
         std::string out = "";
-        out += octets[4];
-        out += octets[5];
+        out += static_cast<char>(octets[4]);
+        out += static_cast<char>(octets[5]);
         out += ".";
-        out += octets[2];
-        out += octets[3];
+        out += static_cast<char>(octets[2]);
+        out += static_cast<char>(octets[3]);
         out += ".";
         
         // RFC5280 section 4.1.2.5.1.
         out += (octets[0] < '5') ? "20" : "19";
-        out += octets[0];
-        out += octets[1];
+        out += static_cast<char>(octets[0]);
+        out += static_cast<char>(octets[1]);
 
         return out;
     }

@@ -16,12 +16,12 @@ public:
 
     UnsignedBigInt(std::string_view number) {
         UnsignedBigInt temp;
-        for (int i = 0; i < number.size(); i++) {
-            int digit = number.at(i) - '0';
-            if (digit > 9 || digit < 0) {
+        for (size_t i = 0; i < number.size(); i++) {
+            if (number.at(i) > 9 + '0' || number.at(i) < '0') {
                 std::cout << "malformed input" << std::endl;
                 abort();
             }
+            size_t digit = static_cast<size_t>(number.at(i) - '0');
             
             temp *= 10;
             temp += UnsignedBigInt(digit);
@@ -32,7 +32,7 @@ public:
 
     UnsignedBigInt(size_t number) 
     {
-        for (int i = 0; i < sizeof(size_t); i++) {
+        for (size_t i = 0; i < sizeof(size_t); i++) {
             m_data.push_back((uint8_t) (number >> i*8));
         }
         ensure_minimum_data_size();
@@ -76,7 +76,7 @@ public:
     }
     void operator<<=(size_t amount);
     void shift_right(size_t);
-    void set_bit(int, bool);
+    void set_bit(size_t, bool);
     bool is_bit_set(size_t) const;
     UnsignedBigInt expmod(UnsignedBigInt const& exp, UnsignedBigInt const& mod) const;
 
