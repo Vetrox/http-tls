@@ -12,7 +12,7 @@ int main() {
 
     std::cout << "Hanshake Sending Payload Length: " << sizeof(handshake) << std::endl;
     std::cout << "Hanshake Content: ";
-    for (int i = 0; i < sizeof(handshake); i++) {
+    for (size_t i = 0; i < sizeof(handshake); i++) {
         std::cout << std::to_hex(b[i]) << ' ';
     }
     std::cout << std::endl;

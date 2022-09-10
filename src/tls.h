@@ -28,9 +28,9 @@ struct ClientHello {
      * This field is empty if no session_id is available, or if the
      * client wishes to generate new security parameters. */
     uint8_t session_id_length = 0;
-    uint8_t session_id[0]; // <0..32> meaning 0 to 32 bytes.
+    // uint8_t session_id[0]; // <0..32> meaning 0 to 32 bytes.
     uint16_t cipher_suites_length = htons(34);
-    uint8_t cipher_suites [34] = { 
+    uint8_t cipher_suites [34] = {
         0x13, 0x01,
         0x13, 0x03,
         0x13, 0x02,

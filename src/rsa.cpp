@@ -19,8 +19,8 @@ UnsignedBigInt decrypt_block(UnsignedBigInt encrypted, UnsignedBigInt const& pri
 }
 
 std::vector<UnsignedBigInt> encrypt(std::vector<uint8_t> const& message, UnsignedBigInt const& public_exponent, UnsignedBigInt const& modulus) {
-    auto block_amount = 0;
-    for (int i = 0;; i++) {
+    size_t block_amount = 0;
+    for (size_t i = 0;; i++) {
         auto octets_levels = UnsignedBigInt(1);
         octets_levels <<= i*8; // TODO: case for log8(modulus)
         if (octets_levels < modulus) {
@@ -29,17 +29,16 @@ std::vector<UnsignedBigInt> encrypt(std::vector<uint8_t> const& message, Unsigne
     }
 
     std::cout << "BLOCK_AMOUNT: " << std::to_string(block_amount) << std::endl;
-    
+
     if (block_amount == 0) {
         std::cout << "ERROR: Modulus is to small (less than 256)" << std::endl;
     }
 
     auto vec = std::vector<UnsignedBigInt>();
-    auto msg_i = 0;
-
+    size_t msg_i = 0;
     while (msg_i < message.size()) {
         auto msg = UnsignedBigInt(0);
-        for (int i = 0; i < block_amount && msg_i < message.size(); msg_i++, i++) {
+        for (size_t i = 0; i < block_amount && msg_i < message.size(); msg_i++, i++) {
             msg <<= 8;
             msg += UnsignedBigInt(message.at(message.size() - msg_i - 1));
             if (msg >= modulus) {
@@ -49,18 +48,18 @@ std::vector<UnsignedBigInt> encrypt(std::vector<uint8_t> const& message, Unsigne
         vec.emplace_back(encrypt_block(std::move(msg), public_exponent, modulus));
     }
     return vec;
-} 
+}
 
 std::vector<uint8_t> decrypt(std::vector<UnsignedBigInt> const& encrypted, UnsignedBigInt const& private_exponent, UnsignedBigInt const& modulus) {
-    auto block_amount = 0;
-    for (int i = 1;; i++) {
+    size_t block_amount = 0;
+    for (size_t i = 1;; i++) {
         auto octets_levels = UnsignedBigInt(1);
         octets_levels <<= i*8; // TODO: case for log2(modulus)
         if (octets_levels < modulus) {
             block_amount = i;
         } else break;
     }
-    
+
     if (block_amount == 0) {
         std::cout << "ERROR: Modulus is to small (less than 256)" << std::endl;
     }
@@ -68,16 +67,16 @@ std::vector<uint8_t> decrypt(std::vector<UnsignedBigInt> const& encrypted, Unsig
     std::vector<uint8_t> ret;
     for (auto const& encrypted_value : encrypted) {
         auto decrytped_value = decrypt_block(encrypted_value, private_exponent, modulus);
-        for (int i = 0; i < block_amount; i++) {
-            char octet = 0;
-            for (int j = 0; j < 8; j++) {
+        for (size_t i = 0; i < block_amount; i++) {
+            int octet = 0;
+            for (size_t j = 0; j < 8; j++) {
                 auto offset = i * 8 + j;
                 if (decrytped_value.is_bit_set(offset)) {
                     octet |= 1 << j;
                 }
             }
-            ret.push_back(octet);
+            ret.push_back(static_cast<uint8_t>(octet));
         }
     }
     return ret;
-} 
+}

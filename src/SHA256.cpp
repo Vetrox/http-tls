@@ -17,7 +17,7 @@ std::array<uint32_t, 8> sha256_hash(std::vector<uint8_t> const& data) {
 
 
 std::string sha256_as_hex(std::array<uint32_t, 8> hash) {
-    std::stringstream ret; 
+    std::stringstream ret;
     for (auto const& h : hash)
         ret << std::hex << std::setfill('0') << std::setw(2) << h;
     return ret.str();
@@ -71,7 +71,7 @@ std::vector<std::array<uint32_t, 16>> split_into_512_bit_blocks(std::vector<bool
         abort();
     }
     std::vector<std::array<uint32_t, 16>> ret{};
-    int m_i = 0;
+    size_t m_i = 0;
     for (; m_i * 512 < message.size(); m_i++) {
         auto current_block = m_i * 512;
         std::array<uint32_t, 16> var{};
@@ -80,7 +80,7 @@ std::vector<std::array<uint32_t, 16>> split_into_512_bit_blocks(std::vector<bool
             uint32_t val = 0;
             for (size_t j = 0; j < 32; j++) {
                 size_t offset = current_block + current_int + j;
-                val |= ((size_t) (message.at(offset) != 0)) << (31-j);
+                val |= ((uint32_t) (message.at(offset) != 0)) << (31-j);
             }
             var[i] = val;
         }
@@ -91,7 +91,7 @@ std::vector<std::array<uint32_t, 16>> split_into_512_bit_blocks(std::vector<bool
         std::cout << "programming error in prev loop" << std::endl;
         abort();
     }
-    return std::move(ret);
+    return ret;
 }
 
 std::array<uint32_t, 8> sha256_hash(std::vector<bool> const& message) {
@@ -150,7 +150,7 @@ std::array<uint32_t, 8> sha256_hash(std::vector<bool> const& message) {
         prev_hash[6] += g;
         prev_hash[7] += h;
     }
-    return std::move(prev_hash);
+    return prev_hash;
 }
 
 
@@ -173,7 +173,7 @@ std::vector<bool> add_padding(std::vector<bool> message) {
     }
 
     auto K = find_l_k_solution(bit_size);
-    for (int i = 0; i < K; i++) {
+    for (size_t i = 0; i < K; i++) {
         message.push_back(false);
     }
 
@@ -181,6 +181,6 @@ std::vector<bool> add_padding(std::vector<bool> message) {
         message.push_back(bit_size & ((size_t) 1 << (size_t) i));
     }
 
-    return std::move(message);
+    return message;
 }
 

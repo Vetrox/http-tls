@@ -35,8 +35,8 @@ void request(const char* ip, uint8_t* payload, size_t payload_length) {
     int sck = 0;
     uint8_t data[4096];
 
-    struct sockaddr_in ipOfServer; 
- 
+    struct sockaddr_in ipOfServer;
+
     if ((sck = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         printf("Socket not created \n");
         abort();
@@ -45,7 +45,7 @@ void request(const char* ip, uint8_t* payload, size_t payload_length) {
     ipOfServer.sin_family = AF_INET;
     ipOfServer.sin_port = htons(443); // https
     ipOfServer.sin_addr.s_addr = inet_addr(ip);
- 
+
     std::cout << "INFO: Connecting to " << ip << std::endl;
     if (connect(sck, (struct sockaddr*)& ipOfServer, sizeof(ipOfServer)) < 0) {
         printf("Connection failed due to port and ip problems\n");
@@ -59,8 +59,8 @@ void request(const char* ip, uint8_t* payload, size_t payload_length) {
     std::deque<uint8_t> v_data;
     while (true) {
         bzero(data, sizeof(data));
-        int n = read(sck, data, sizeof(data));
-        if (n == 0) { 
+        auto n = read(sck, data, sizeof(data));
+        if (n == 0) {
             std::cout << "INFO: Closing socket" << std::endl;
             close(sck);
             return;
@@ -80,8 +80,9 @@ void request(const char* ip, uint8_t* payload, size_t payload_length) {
     }
 }
 
-bool verify_cert_chain(std::vector<X509v3> certs) {  
-    for (int64_t i = certs.size() - 1; i >= 0; i--) {
+bool verify_cert_chain(std::vector<X509v3> certs) {
+    for (size_t oi = 0; oi < certs.size(); oi++) {
+        size_t i = certs.size() - 1 - oi;
         auto cert = certs.at(i);
         std::cout << "CERT-serial_number: " << cert.serial_number.as_decimal() << std::endl;
         // std::cout << "CERT-public-key: \n  modulus: " << cert.public_key.modulus.as_decimal() << "\n  exponent: "
@@ -90,7 +91,7 @@ bool verify_cert_chain(std::vector<X509v3> certs) {
 
         PublicKey ca_pubkey;
         if (i == certs.size() - 1) {
-        // RSA self sign check (only works on self signed). 
+        // RSA self sign check (only works on self signed).
             ca_pubkey = cert.public_key;
         } else { // on others use the pubkey of the CA one above
             ca_pubkey = certs.at(i + 1).public_key;
@@ -110,7 +111,7 @@ bool verify_cert_chain(std::vector<X509v3> certs) {
 
         for (size_t p = 0; p < chopped_sig_hash.size(); p++)
             if (chopped_sig_hash[p] != hash_as_octets[p]) {
-                std::cout << "HASH MISMATCH: decrypted: " << std::hex << std::setfill('0') 
+                std::cout << "HASH MISMATCH: decrypted: " << std::hex << std::setfill('0')
                     << std::setw(2) << (int) chopped_sig_hash[p]
                     << " hashed cert: " << std::setw(2) << (int) hash_as_octets[p]
                     << std::dec << std::endl;
@@ -129,8 +130,8 @@ void try_decode(std::deque<uint8_t> &data) {
             std::cout << "unsupported tls record" << std::endl;
             abort();
         }
-        
-        auto length = (static_cast<uint16_t>(data[3]) << 8) | data[4]; // ntohs(*reinterpret_cast<uint16_t*>(&data[3]));
+
+        size_t length = (static_cast<size_t>(data[3]) << 8) | data[4]; // ntohs(*reinterpret_cast<uint16_t*>(&data[3]));
         if (data.size() < length + 5) {
             return; // wait for tcp to finish
         }
@@ -147,9 +148,9 @@ void try_decode(std::deque<uint8_t> &data) {
 
         constexpr auto handshake_preamble_l = 4;
         auto handshake_type = data[0];
-        
+
         // FIXME: this depends on the host byte order (mine is len)
-        int handshake_payload_l = btolEN24_u32((&data[1])); /* data[1] << 16 
+        auto handshake_payload_l = btolEN24_u32((&data[1])); /* data[1] << 16
             | data[2] << 8
             | data[3];
 */
@@ -158,7 +159,7 @@ void try_decode(std::deque<uint8_t> &data) {
                 " to record_payload length" << std::endl;
             abort();
         }
-        
+
         for (int i = 0; i < handshake_preamble_l; i++) {
             data.pop_front();
         }
@@ -166,7 +167,7 @@ void try_decode(std::deque<uint8_t> &data) {
         switch (handshake_type) {
             case msg_type<ServerHello>(): {
                 std::cout << "Handshake Type: ServerHello" << std::endl;
-                
+
                 ServerHello decoded;
                 bzero(&decoded, sizeof(decoded));
                 for (size_t i = 0; i < 2 + sizeof(Random) + 1; i++) {
@@ -182,11 +183,11 @@ void try_decode(std::deque<uint8_t> &data) {
                     data.pop_front();
                 }
                 std::cout << std::hex << std::setfill('0');
-                std::cout 
+                std::cout
                     << "sv: " << std::setw(2) << (int) decoded.server_version[0] << " "
                     << std::setw(2) << (int) decoded.server_version[1] << "\n"
                     << "c: " << std::setw(2) << (int) decoded.compression_method << "\n"
-                    << "cs: " << std::setw(2) << (int) decoded.cipher_suite[0] << " " 
+                    << "cs: " << std::setw(2) << (int) decoded.cipher_suite[0] << " "
                     << std::setw(2) << (int) decoded.cipher_suite[1] << "\n";
                 for (int i = 0; i < decoded.session_id_length; i++) {
                     std::cout << std::setw(2) << (int) decoded.session_id[i] << " ";
@@ -196,7 +197,7 @@ void try_decode(std::deque<uint8_t> &data) {
             }
             case msg_type<Certificates>(): {
                 std::cout << "it's certificates" << std::endl;
-                
+
                 std::vector<X509v3> cert_chain;
                 // NOTE: certificates.length not populated
                 for (int i = 0; i < 3; i++) {
@@ -204,11 +205,11 @@ void try_decode(std::deque<uint8_t> &data) {
                 }
 
                 for (size_t offset = 0; offset < handshake_payload_l - 3;) {
-                    uint32_t cert_len = btolEN24_u32(data.begin()); 
+                    uint32_t cert_len = btolEN24_u32(data.begin());
                     for (size_t i = 0; i < 3; i++) {
                         data.pop_front();
                     }
-                    
+
                     std::vector<uint8_t> cert_bytes;
                     for (size_t i = 0; i < cert_len; i++) {
                         cert_bytes.push_back(data[0]);
