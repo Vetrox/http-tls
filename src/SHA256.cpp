@@ -4,6 +4,7 @@
 #include <array>
 
 #include <iomanip>
+#include "hexutils.h"
 
 std::array<uint32_t, 8> sha256_hash(std::vector<uint8_t> const& data) {
     std::vector<bool> temp;
@@ -17,10 +18,10 @@ std::array<uint32_t, 8> sha256_hash(std::vector<uint8_t> const& data) {
 
 
 std::string sha256_as_hex(std::array<uint32_t, 8> hash) {
-    std::stringstream ret;
+    std::string s {};
     for (auto const& h : hash)
-        ret << std::hex << std::setfill('0') << std::setw(2) << h;
-    return ret.str();
+        s += std::to_hex(static_cast<size_t>(h));
+    return s;
 }
 
 uint32_t rotr(uint32_t x, uint32_t n) { // FROM: https://blog.regehr.org/archives/1063

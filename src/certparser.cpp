@@ -7,8 +7,8 @@
 #include "SHA256.h"
 
 static constexpr std::array<uint8_t, 19> sha256_digest_info {
-    0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 
-    0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20 
+    0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01,
+    0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20
 };
 
 std::span<uint8_t> chop_decrypted_signature(std::span<uint8_t> data) {
@@ -20,11 +20,11 @@ std::span<uint8_t> chop_decrypted_signature(std::span<uint8_t> data) {
         abort();
     }
     size_t start = static_cast<size_t>(it - data.begin()) + 1;
- 
+
     for (size_t i = 0; i < sha256_digest_info.size(); i++) {
         if (data[i + start] != sha256_digest_info[i]) {
             std::cout << " MISMATCH: " << (size_t) data[i + start] << " != " << (size_t) sha256_digest_info[i] << " (expected)" << std::endl;
-            abort();    
+            abort();
         }
     }
     start += sha256_digest_info.size();
@@ -182,16 +182,14 @@ std::string parse_string(std::span<uint8_t> octets) {
 
 
 std::string as_hex(std::vector<uint8_t> octets) {
-    std::stringstream s;
-    s << std::hex << std::setfill('0');
+    std::string s{};
     bool first = true;
     for (auto& octet : octets) {
-        if (!first) s << ":";
+        if (!first) s += ":";
         first = false;
-        s << std::setw(2) << (int) octet;
+        s += std::to_string(octet);
     }
-    s << std::dec;
-    return s.str();
+    return s;
 }
 
 void print_octet(uint8_t octet, size_t indent = 0) {

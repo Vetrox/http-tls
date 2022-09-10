@@ -10,8 +10,8 @@ int main() {
 
     uint8_t* b = (uint8_t*) (&handshake);
 
-    std::cout << "Hanshake Sending Payload Length: " << sizeof(handshake) << std::endl;
-    std::cout << "Hanshake Content: ";
+    std::cout << "Handshake Sending Payload Length: " << sizeof(handshake) << std::endl;
+    std::cout << "Handshake Content: ";
     for (size_t i = 0; i < sizeof(handshake); i++) {
         std::cout << std::to_hex(b[i]) << ' ';
     }

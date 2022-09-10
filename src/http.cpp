@@ -24,6 +24,8 @@
 #include <deque>
 
 #include "rsa.h"
+
+#include "hexutils.h"
 #include "cert.h"
 
 //FIXME REMOVE THIS
@@ -111,10 +113,7 @@ bool verify_cert_chain(std::vector<X509v3> certs) {
 
         for (size_t p = 0; p < chopped_sig_hash.size(); p++)
             if (chopped_sig_hash[p] != hash_as_octets[p]) {
-                std::cout << "HASH MISMATCH: decrypted: " << std::hex << std::setfill('0')
-                    << std::setw(2) << (int) chopped_sig_hash[p]
-                    << " hashed cert: " << std::setw(2) << (int) hash_as_octets[p]
-                    << std::dec << std::endl;
+                std::cout << "HASH MISMATCH: decrypted: " << std::to_hex(chopped_sig_hash[p]) << " hashed cert: " << std::to_hex(hash_as_octets[p]) << std::endl;
                 return false;
             }
     }
@@ -182,17 +181,6 @@ void try_decode(std::deque<uint8_t> &data) {
                     ((uint8_t*) &decoded.cipher_suite)[i] = data[0];
                     data.pop_front();
                 }
-                std::cout << std::hex << std::setfill('0');
-                std::cout
-                    << "sv: " << std::setw(2) << (int) decoded.server_version[0] << " "
-                    << std::setw(2) << (int) decoded.server_version[1] << "\n"
-                    << "c: " << std::setw(2) << (int) decoded.compression_method << "\n"
-                    << "cs: " << std::setw(2) << (int) decoded.cipher_suite[0] << " "
-                    << std::setw(2) << (int) decoded.cipher_suite[1] << "\n";
-                for (int i = 0; i < decoded.session_id_length; i++) {
-                    std::cout << std::setw(2) << (int) decoded.session_id[i] << " ";
-                }
-                std::cout << std::dec << std::endl;
                 break;
             }
             case msg_type<Certificates>(): {
