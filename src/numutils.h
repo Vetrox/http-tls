@@ -8,8 +8,8 @@ class UnsignedBigInt {
 public:
     UnsignedBigInt() {}
 
-    UnsignedBigInt(std::vector<uint8_t> const data) 
-        : m_data(data) 
+    UnsignedBigInt(std::vector<uint8_t> const data)
+        : m_data(data)
     {
         ensure_minimum_data_size();
     }
@@ -22,15 +22,14 @@ public:
                 abort();
             }
             size_t digit = static_cast<size_t>(number.at(i) - '0');
-            
             temp *= 10;
             temp += UnsignedBigInt(digit);
         }
 
-        *this = temp;    
+        *this = temp;
     }
 
-    UnsignedBigInt(size_t number) 
+    UnsignedBigInt(size_t number)
     {
         for (size_t i = 0; i < sizeof(size_t); i++) {
             m_data.push_back((uint8_t) (number >> i*8));
@@ -38,18 +37,18 @@ public:
         ensure_minimum_data_size();
     }
 
-    UnsignedBigInt(UnsignedBigInt const& old_obj) 
+    UnsignedBigInt(UnsignedBigInt const& old_obj)
         : m_data(old_obj.m_data)
     {
         ensure_minimum_data_size();
     }
-    
-    UnsignedBigInt(UnsignedBigInt const&& old_obj) 
+
+    UnsignedBigInt(UnsignedBigInt const&& old_obj)
         : m_data(std::move(old_obj.m_data))
     {
         ensure_minimum_data_size();
     }
-    
+
     std::string as_binary() const;
     std::string as_decimal() const;
 
@@ -92,6 +91,6 @@ public:
     }
 private:
     std::vector<uint8_t> m_data {}; // little endian (least significant byte first)
-    
+
     void ensure_minimum_data_size();
 };
