@@ -10,13 +10,13 @@ bool UnsignedBigInt::is_bit_set(size_t position) const {
     if (m_data.size() <= whole_octet_shift) {
         return false;
     }
-    
+
     return (m_data.at(whole_octet_shift) & (1 << sub_octet_shift)) != 0;
 }
 
 UnsignedBigInt UnsignedBigInt::operator*(UnsignedBigInt const& other) const {
     auto ret = UnsignedBigInt(0);
-    
+
     auto c_other = other; // TODO: only because of bitshift
 
     for (size_t i = 0; i < m_data.size(); i++) {
@@ -36,7 +36,7 @@ UnsignedBigInt UnsignedBigInt::operator*(UnsignedBigInt const& other) const {
 UnsignedBigInt UnsignedBigInt::operator/(UnsignedBigInt const& other) const {
     UnsignedBigInt c_mod = UnsignedBigInt({});
     UnsignedBigInt c_div = UnsignedBigInt({});
-    
+
     divmod(other, c_div, c_mod);
 
     return c_div;
@@ -45,14 +45,14 @@ UnsignedBigInt UnsignedBigInt::operator/(UnsignedBigInt const& other) const {
 UnsignedBigInt UnsignedBigInt::operator%(UnsignedBigInt const& other) const {
     UnsignedBigInt c_mod = UnsignedBigInt({});
     UnsignedBigInt c_div = UnsignedBigInt({});
-    
+
     divmod(other, c_div, c_mod);
 
     return c_mod;
 }
 /** Fast exponentiation:
  *  calculates this = (this^z) % n
- * 
+ *
  */
 /*void UnsignedBigInt::expmod(UnsignedBigInt &z, UnsignedBigInt &n){
     auto a1 = this;
@@ -71,7 +71,7 @@ UnsignedBigInt UnsignedBigInt::operator%(UnsignedBigInt const& other) const {
 
 /** Fast exponentiation:
  *  calculates this = (this^z) % n
- * 
+ *
  */
 UnsignedBigInt UnsignedBigInt::expmod(UnsignedBigInt const& z, UnsignedBigInt const& n) const {
     auto a1 = *this;
@@ -188,7 +188,7 @@ std::string UnsignedBigInt::as_decimal() const {
     auto cache = UnsignedBigInt(m_data);
     auto ten = UnsignedBigInt(10);
     while (cache >= ten) {
-        div = UnsignedBigInt(0); 
+        div = UnsignedBigInt(0);
         mod = UnsignedBigInt(0);
         cache.divmod(ten, div, mod);
         if (cache <= div) {
@@ -244,7 +244,7 @@ UnsignedBigInt UnsignedBigInt::operator+(UnsignedBigInt const& other) const {
         size_t res = o + carry;
         carry = res >> 8;
         cache.push_back((uint8_t) (res & 0xff));
-    } 
+    }
 
     for (; our_i < m_data.size(); our_i++) {
         size_t t = m_data[our_i];
@@ -266,7 +266,7 @@ UnsignedBigInt UnsignedBigInt::operator-(UnsignedBigInt const& other) const {
         abort();
     }
     // calculate this - other. other <= this
-    
+
     std::vector<uint8_t> cache;
     uint8_t carry = 0;
     size_t this_i = 0;
@@ -306,7 +306,7 @@ UnsignedBigInt UnsignedBigInt::operator-(UnsignedBigInt const& other) const {
         std::cout << "UNEXPECTED: Carry shouldn't be 1 here ever, no?" << std::endl;
         abort();
     }
-    
+
     return UnsignedBigInt(cache);
 }
 
